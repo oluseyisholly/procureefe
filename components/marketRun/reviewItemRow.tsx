@@ -35,20 +35,20 @@ export default function ReviewItemRow({ item }: { item: ReviewItem }) {
         <Image src={"/rice.svg"} alt="On Boarding Image" width={50} height={50} />
 
         <div className="min-w-0 flex-1">
-          <div className="mt-1 grid grid-cols-4 gap-4 flex items-center">
+          <div className="mt-1 grid grid-cols-3 gap-4 flex items-center">
             <div>
               <p className="text-[14px] font-[500] text-[#1F2933]">
                 {item.name}
               </p>
 
-              <p className="text-[11px] font-[400] text-[#9CA3AF]">Base Unit</p>
+              <p className="text-[11px] font-[400] text-[#9CA3AF]">Unit</p>
               <p className="mt-1 text-[14px] font-[400] text-[#475467]">
                 {item.baseUnit}
               </p>
             </div>
             <div>
               <p className="text-[11px] font-[400] text-[#9CA3AF]">
-                Base Price
+                Price per Unit
               </p>
               <p className="mt-1 text-[14px] font-[400] text-[#475467]">
                 {item.basePrice}
@@ -62,19 +62,19 @@ export default function ReviewItemRow({ item }: { item: ReviewItem }) {
                 {item.minimumOrder}
               </p>
             </div>
-            <div>
+            {/* <div>
               <p className="text-[11px] font-[400] text-[#9CA3AF]">
                 Maximum Order
               </p>
               <p className="mt-1 text-[14px] font-[400] text-[#475467]">
                 {item.maximumOrder}
               </p>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* <div className="flex items-center gap-3">
         <IconButton
           label={`Edit ${item.name}`}
           className="text-[#667085] transition-colors hover:text-[#475467]"
@@ -87,7 +87,7 @@ export default function ReviewItemRow({ item }: { item: ReviewItem }) {
         >
           <DeleteIcon className="h-4 w-4" />
         </IconButton>
-      </div>
+      </div> */}
     </div>
   );
 }

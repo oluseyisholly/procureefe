@@ -8,4 +8,7 @@ export const API_ENDPOINTS = {
   commodities: {
     index: "/Commodity",
   },
+  marketRuns: {
+    create: "/market-run",
+  },
 } as const;

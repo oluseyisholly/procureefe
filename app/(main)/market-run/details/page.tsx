@@ -2,23 +2,18 @@
 
 import { CalenderIcon } from "@/components/icons/calender";
 import { MarketRunHeader } from "@/components/marketRun/header-marketrun";
-import { OnBoardingHeader } from "@/components/onboarding/header";
 import { Button } from "@/components/ui/button";
 import { FormikInput } from "@/components/ui/input";
 import { Form, Formik, type FormikHelpers } from "formik";
 import { useRouter } from "next/navigation";
+import { useMemo } from "react";
+import { useMarketRunFlowStore } from "@/store";
 import * as yup from "yup";
 
 type MarketRunDetailsFormValues = {
   description: string;
   bookingEndDate: string;
   marketRunDate: string;
-};
-
-const initialValues: MarketRunDetailsFormValues = {
-  description: "",
-  bookingEndDate: "",
-  marketRunDate: "",
 };
 
 function parseISODate(value: string): Date | null {
@@ -75,12 +70,26 @@ const detailsValidationSchema = yup.object({
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { marketRunDetailsDraft, setMarketRunDetailsDraft } =
+    useMarketRunFlowStore();
+  const initialValues = useMemo<MarketRunDetailsFormValues>(
+    () => ({
+      description: marketRunDetailsDraft.description,
+      bookingEndDate: marketRunDetailsDraft.bookingEndDate,
+      marketRunDate: marketRunDetailsDraft.marketRunDate,
+    }),
+    [marketRunDetailsDraft],
+  );
 
-  async function handleSubmit(
-    _values: MarketRunDetailsFormValues,
+  function handleSubmit(
+    values: MarketRunDetailsFormValues,
     { setSubmitting }: FormikHelpers<MarketRunDetailsFormValues>,
   ) {
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    setMarketRunDetailsDraft({
+      description: values.description.trim(),
+      bookingEndDate: values.bookingEndDate,
+      marketRunDate: values.marketRunDate,
+    });
     setSubmitting(false);
     router.push("/market-run/item");
   }
@@ -100,8 +109,9 @@ export default function DashboardPage() {
           validationSchema={detailsValidationSchema}
           onSubmit={handleSubmit}
           validateOnMount
+          enableReinitialize
         >
-          {({ isSubmitting, isValid, resetForm }) => (
+          {({ isSubmitting, isValid }) => (
             <Form className="space-y-4">
               <FormikInput
                 name="description"
@@ -130,9 +140,9 @@ export default function DashboardPage() {
                       type="button"
                       color="slate"
                       variant="outline"
-                      onClick={() => resetForm()}
+                      onClick={() => router.push("/dashboard")}
                     >
-                      Cancel
+                      Back
                     </Button>
                     <Button
                       type="submit"

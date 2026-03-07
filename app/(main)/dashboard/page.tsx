@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { IconButton } from "@/components/ui/icon-button";
 import { DataTable, type DataTableColumn } from "@/components/ui/table";
+import { useRouter } from "next/navigation";
 import type { DashboardStatusFilter, MarketRunRow } from "@/store";
 import {
   useDashboardFilters,
@@ -50,6 +51,7 @@ const columns: DataTableColumn<MarketRunRow>[] = [
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
   const rows = useDashboardRows();
 
   return (
@@ -92,7 +94,12 @@ export default function DashboardPage() {
           </div>
           <Card className="px-[22px] py-[29px]">
             <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
-              <Button type="button">Create Market Runs</Button>
+              <Button
+                type="button"
+                onClick={() => router.push("/market-run/details")}
+              >
+                Create Market Runs
+              </Button>
             </div>
 
             <DataTable
