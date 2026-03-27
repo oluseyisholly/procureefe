@@ -15,9 +15,11 @@ export type MarketRunCommodityDraft = {
   commodityName: string;
   commodityUnitId: string;
   commodityUnitName: string;
+  unitMultiplier?: number;
+  isLeastUnit?: boolean;
   pricePerUnit: number;
   minQty: number;
-  maxQty: number;
+  maxQty: number | null;
 };
 
 const initialMarketRunDetailsDraft: MarketRunDetailsDraft = {
@@ -35,6 +37,8 @@ function cloneMarketRunCommodityDrafts(
     commodityName: draft.commodityName,
     commodityUnitId: draft.commodityUnitId,
     commodityUnitName: draft.commodityUnitName,
+    unitMultiplier: draft.unitMultiplier,
+    isLeastUnit: draft.isLeastUnit,
     pricePerUnit: draft.pricePerUnit,
     minQty: draft.minQty,
     maxQty: draft.maxQty,

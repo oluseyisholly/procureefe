@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type {
   CreateCommodityPayload,
   CreateCommodityResponse,
+  DeleteCommodityResponse,
   GetCommoditiesPayload,
   GetCommoditiesResponse,
   UpdateCommodityPayload,
@@ -51,6 +52,16 @@ export async function updateCommodity(
   const response = await apiClient.patch<UpdateCommodityResponse>(
     `${API_ENDPOINTS.commodities.index}/${encodeURIComponent(id)}`,
     updatePayload,
+  );
+
+  return response.data;
+}
+
+export async function deleteCommodity(
+  id: string,
+): Promise<DeleteCommodityResponse> {
+  const response = await apiClient.delete<DeleteCommodityResponse>(
+    `${API_ENDPOINTS.commodities.index}/${encodeURIComponent(id)}`,
   );
 
   return response.data;

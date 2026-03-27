@@ -13,7 +13,14 @@ export const commoditiesQueryKeys = {
     [...commoditiesQueryKeys.all, payload.page, payload.perPage, payload.searchQuery] as const,
 };
 
-export function useCommoditiesQuery(payload: GetCommoditiesPayload = {}) {
+type UseCommoditiesQueryOptions = {
+  enabled?: boolean;
+};
+
+export function useCommoditiesQuery(
+  payload: GetCommoditiesPayload = {},
+  options: UseCommoditiesQueryOptions = {},
+) {
   const page = payload.page ?? DEFAULT_COMMODITY_PAGE;
   const perPage = payload.perPage ?? DEFAULT_COMMODITIES_PER_PAGE;
   const searchQuery = payload.searchQuery?.trim() ?? "";
@@ -26,5 +33,6 @@ export function useCommoditiesQuery(payload: GetCommoditiesPayload = {}) {
         perPage,
         searchQuery,
       }),
+    enabled: options.enabled ?? true,
   });
 }

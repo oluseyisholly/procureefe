@@ -1,10 +1,12 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 export type StepperStep = {
   id?: string;
   label: string;
+  href?: string;
 };
 
 export type StepperProps = {
@@ -12,6 +14,7 @@ export type StepperProps = {
   currentStep: number;
   className?: string;
   ariaLabel?: string;
+  onStepClick?: (step: StepperStep, index: number) => void;
 };
 
 function normalizeSteps(steps: Array<StepperStep | string>): StepperStep[] {
@@ -50,6 +53,7 @@ export function Stepper({
   currentStep,
   className,
   ariaLabel = "Progress",
+  onStepClick,
 }: StepperProps) {
   const normalizedSteps = normalizeSteps(steps);
   const totalSteps = normalizedSteps.length;
@@ -68,10 +72,15 @@ export function Stepper({
           const isCompleted = stepNumber < safeCurrentStep;
           const isActive = stepNumber === safeCurrentStep;
           const isLast = index === totalSteps - 1;
+          const isClickable = isCompleted || isActive;
           const key = step.id ?? `step-${stepNumber}`;
+          const wrapperClassName = cn(
+            "flex flex-col",
+            isClickable ? "cursor-pointer" : "cursor-default",
+          );
 
-          return (
-            <li key={key} className={cn("flex flex-col", isLast ? "w-fit" : "flex-1")}>
+          const stepContent = (
+            <>
               <div className="flex items-center">
                 <span
                   className={cn(
@@ -106,6 +115,26 @@ export function Stepper({
               >
                 {step.label}
               </span>
+            </>
+          );
+
+          return (
+            <li key={key} className={cn("flex flex-col", isLast ? "w-fit" : "flex-1")}>
+              {isClickable && step.href ? (
+                <Link href={step.href} className={wrapperClassName}>
+                  {stepContent}
+                </Link>
+              ) : isClickable && onStepClick ? (
+                <button
+                  type="button"
+                  onClick={() => onStepClick(step, index)}
+                  className={wrapperClassName}
+                >
+                  {stepContent}
+                </button>
+              ) : (
+                <div className={wrapperClassName}>{stepContent}</div>
+              )}
             </li>
           );
         })}

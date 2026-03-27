@@ -16,7 +16,11 @@ export function MarketRunShell({ children }: { children: ReactNode }) {
     <div className="flex ">
       <div className="flex gap-[27px] flex-1 flex-col items-center">
         <Stepper
-          steps={["Details", "Items", "Review"]}
+          steps={[
+            { label: "Details", href: "/market-run/details" },
+            { label: "Items", href: "/market-run/item" },
+            { label: "Review", href: "/market-run/review" },
+          ]}
           currentStep={currentStep}
           className="!max-w-[388px]"
         />

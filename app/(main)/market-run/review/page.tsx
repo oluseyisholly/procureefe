@@ -8,11 +8,9 @@ import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { getApiErrorMessage } from "@/lib/api";
 import { useCreateMarketRunMutation } from "@/lib/api/market-runs";
-import { useMarketRunFlowStore } from "@/store";
+import { type MarketRunCommodityDraft, useMarketRunFlowStore } from "@/store";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-
-const REVIEW_ITEM_TONES: ReviewItem["tone"][] = ["amber", "sky", "rose"];
 
 function formatNaira(value: number): string {
   return `₦${value.toLocaleString(undefined, {
@@ -46,6 +44,69 @@ function toApiDate(value: string): string {
   return `${value}T00:00:00Z`;
 }
 
+function getComparableMaxQty(value: number | null): number {
+  if (value === null) {
+    return -1;
+  }
+
+  return value;
+}
+
+function getUnitMultiplier(draft: MarketRunCommodityDraft): number | null {
+  const multiplier = draft.unitMultiplier;
+  if (!Number.isFinite(multiplier) || !multiplier || multiplier <= 0) {
+    return null;
+  }
+
+  return multiplier;
+}
+
+function selectLeastUnitDraft(
+  drafts: MarketRunCommodityDraft[],
+): MarketRunCommodityDraft {
+  const flaggedLeastUnit = drafts.find((draft) => draft.isLeastUnit);
+  if (flaggedLeastUnit) {
+    return flaggedLeastUnit;
+  }
+
+  const exactLeastUnit = drafts.find((draft) => getUnitMultiplier(draft) === 1);
+  if (exactLeastUnit) {
+    return exactLeastUnit;
+  }
+
+  return [...drafts].sort((a, b) => {
+    const multiplierA = getUnitMultiplier(a) ?? Number.POSITIVE_INFINITY;
+    const multiplierB = getUnitMultiplier(b) ?? Number.POSITIVE_INFINITY;
+    if (multiplierA !== multiplierB) {
+      return multiplierA - multiplierB;
+    }
+
+    if (a.maxQty !== b.maxQty) {
+      return getComparableMaxQty(b.maxQty) - getComparableMaxQty(a.maxQty);
+    }
+
+    if (a.minQty !== b.minQty) {
+      return b.minQty - a.minQty;
+    }
+
+    return a.commodityUnitName.localeCompare(b.commodityUnitName);
+  })[0];
+}
+
+function sortByUnitSize(
+  a: MarketRunCommodityDraft,
+  b: MarketRunCommodityDraft,
+): number {
+  const multiplierA = getUnitMultiplier(a) ?? Number.POSITIVE_INFINITY;
+  const multiplierB = getUnitMultiplier(b) ?? Number.POSITIVE_INFINITY;
+
+  if (multiplierA !== multiplierB) {
+    return multiplierA - multiplierB;
+  }
+
+  return a.commodityUnitName.localeCompare(b.commodityUnitName);
+}
+
 export default function MarketRunReviewPage() {
   const router = useRouter();
   const createMarketRunMutation = useCreateMarketRunMutation();
@@ -74,19 +135,38 @@ export default function MarketRunReviewPage() {
     [marketRunDetailsDraft],
   );
 
-  const reviewItems = useMemo<ReviewItem[]>(
-    () =>
-      marketRunCommodityDrafts.map((draft, index) => ({
-        id: draft.id,
-        name: draft.commodityName,
-        baseUnit: draft.commodityUnitName,
-        basePrice: formatNaira(draft.pricePerUnit),
-        minimumOrder: String(draft.minQty),
-        maximumOrder: String(draft.maxQty),
-        tone: REVIEW_ITEM_TONES[index % REVIEW_ITEM_TONES.length],
-      })),
-    [marketRunCommodityDrafts],
-  );
+  const reviewItems = useMemo<ReviewItem[]>(() => {
+    const groupedDrafts = new Map<string, MarketRunCommodityDraft[]>();
+
+    for (const draft of marketRunCommodityDrafts) {
+      const currentDrafts = groupedDrafts.get(draft.commodityId) ?? [];
+      groupedDrafts.set(draft.commodityId, [...currentDrafts, draft]);
+    }
+
+    return Array.from(groupedDrafts.entries()).map(([commodityId, drafts]) => {
+      const leastUnitDraft = selectLeastUnitDraft(drafts);
+      const additionalUnits = drafts
+        .filter((draft) => draft.id !== leastUnitDraft.id)
+        .sort(sortByUnitSize)
+        .map((draft) => ({
+          unit: draft.commodityUnitName,
+          price: formatNaira(draft.pricePerUnit),
+        }));
+
+      return {
+        id: commodityId,
+        name: leastUnitDraft.commodityName,
+        baseUnit: leastUnitDraft.commodityUnitName,
+        basePrice: formatNaira(leastUnitDraft.pricePerUnit),
+        minimumOrder: String(leastUnitDraft.minQty),
+        maximumOrder:
+          leastUnitDraft.maxQty === null
+            ? "No Maximum Order"
+            : String(leastUnitDraft.maxQty),
+        additionalUnits,
+      };
+    });
+  }, [marketRunCommodityDrafts]);
 
   const canPublish =
     Boolean(marketRunDetailsDraft.description.trim()) &&
@@ -174,9 +254,18 @@ export default function MarketRunReviewPage() {
             type="button"
             color="slate"
             variant="outline"
+            onClick={() => router.push("/dashboard")}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            color="slate"
+            variant="primary"
+            className="bg-[#6B7280] text-white hover:bg-[#5F6774]"
             onClick={() => router.push("/market-run/item")}
           >
-            Back
+            Back: Items
           </Button>
           <Button type="button" color="blue" disabled>
             Save as Draft

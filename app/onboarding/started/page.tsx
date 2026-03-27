@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { FormikInput } from "@/components/ui/input";
 import { OnBoardingHeader } from "@/components/onboarding/header";
+import { getApiErrorMessage } from "@/lib/api";
+import { useCheckEmailUniqueMutation } from "@/lib/api/users";
 import { useOnboardingFlowStore } from "@/store";
 
 type StartedFormValues = {
@@ -35,6 +37,7 @@ const startedValidationSchema = yup.object({
 export default function StartedPage() {
   const router = useRouter();
   const { onboardingDraft, setOnboardingDraft } = useOnboardingFlowStore();
+  const checkEmailUniqueMutation = useCheckEmailUniqueMutation();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const initialValues: StartedFormValues = {
@@ -43,17 +46,46 @@ export default function StartedPage() {
     confirmPassword: onboardingDraft.confirmPassword,
   };
 
-  function handleSubmit(
+  async function handleSubmit(
     values: StartedFormValues,
-    { setSubmitting }: FormikHelpers<StartedFormValues>,
+    {
+      setFieldError,
+      setStatus,
+      setSubmitting,
+    }: FormikHelpers<StartedFormValues>,
   ) {
-    setOnboardingDraft({
-      email: values.email.trim(),
-      password: values.password,
-      confirmPassword: values.confirmPassword,
-    });
-    setSubmitting(false);
-    router.push("/onboarding/verify");
+    setStatus(undefined);
+
+    const normalizedEmail = values.email.trim().toLowerCase();
+
+    try {
+      const emailCheckResponse =
+        await checkEmailUniqueMutation.mutateAsync(normalizedEmail);
+
+      if (!emailCheckResponse.data.isUnique) {
+        setFieldError(
+          "email",
+          "This email is already in use. Try another email or sign in.",
+        );
+        return;
+      }
+
+      setOnboardingDraft({
+        email: normalizedEmail,
+        password: values.password,
+        confirmPassword: values.confirmPassword,
+      });
+      router.push("/onboarding/verify");
+    } catch (error) {
+      setStatus(
+        getApiErrorMessage(
+          error,
+          "We could not verify this email right now. Please try again.",
+        ),
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -70,7 +102,7 @@ export default function StartedPage() {
         onSubmit={handleSubmit}
         enableReinitialize
       >
-        {({ isSubmitting }) => (
+        {({ isSubmitting, status }) => (
           <Form className="space-y-4">
             <FormikInput
               name="email"
@@ -107,6 +139,10 @@ export default function StartedPage() {
                 />
               }
             />
+
+            {typeof status === "string" ? (
+              <p className="text-sm text-red-600">{status}</p>
+            ) : null}
 
             <div className="pt-12">
               <Button type="submit" className="w-full" disabled={isSubmitting}>

@@ -4,12 +4,18 @@ import { DeleteIcon } from "@/components/icons/delete";
 import { EditIcon } from "@/components/icons/edit";
 import { CategoryForm } from "@/components/item/category/form";
 import { Card } from "@/components/ui/card";
+import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { Modal, ModalBody } from "@/components/ui/modal";
-import { useCategoriesQuery, type Category } from "@/lib/api/categories";
+import {
+  useCategoriesQuery,
+  useDeleteCategoryMutation,
+  type Category,
+} from "@/lib/api/categories";
 import { getApiErrorMessage } from "@/lib/api/error";
 import { cn } from "@/lib/utils";
+import { useSnackbar } from "@/store/hooks/use-snackbar";
 import { useEffect, useMemo, useState } from "react";
 import { SearchIcon } from "./search-icon";
 
@@ -22,14 +28,17 @@ type CategoriesPanelProps = {
 };
 
 export function CategoriesPanel({ className }: CategoriesPanelProps) {
+  const { showError, showSuccess } = useSnackbar();
   const [categorySearch, setCategorySearch] = useState("");
   const [debouncedCategorySearch, setDebouncedCategorySearch] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
   );
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   const [formMode, setFormMode] = useState<"create" | "update">("create");
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const deleteCategoryMutation = useDeleteCategoryMutation();
 
   const handleCloseCategoryModal = () => {
     setIsCategoryModalOpen(false);
@@ -47,6 +56,37 @@ export function CategoriesPanel({ className }: CategoriesPanelProps) {
     setFormMode("update");
     setEditingCategory(category);
     setIsCategoryModalOpen(true);
+  };
+
+  const handleOpenDeleteCategoryModal = (category: Category) => {
+    setCategoryToDelete(category);
+  };
+
+  const handleCloseDeleteCategoryModal = () => {
+    if (deleteCategoryMutation.isPending) {
+      return;
+    }
+    setCategoryToDelete(null);
+  };
+
+  const handleConfirmDeleteCategory = async () => {
+    if (!categoryToDelete?.id) {
+      return;
+    }
+
+    try {
+      const response = await deleteCategoryMutation.mutateAsync(categoryToDelete.id);
+      showSuccess(response.message || "Category deleted successfully.");
+
+      if (selectedCategoryId === categoryToDelete.id) {
+        setSelectedCategoryId(null);
+      }
+      setCategoryToDelete(null);
+    } catch (error) {
+      showError(getApiErrorMessage(error, "Unable to delete category."), {
+        title: "Deletion Failed",
+      });
+    }
   };
 
   useEffect(() => {
@@ -161,6 +201,7 @@ export function CategoriesPanel({ className }: CategoriesPanelProps) {
                 <IconButton
                   disabled={!category.groupId}
                   label={`Delete ${category.name}`}
+                  onClick={() => handleOpenDeleteCategoryModal(category)}
                   className={`${category.groupId ? "cursor-pointer" : "cursor-not-allowed"} inline-flex items-center justify-center rounded-sm p-0.5 transition-opacity hover:opacity-80`}
                 >
                   <DeleteIcon className="h-4 w-4" />
@@ -195,6 +236,14 @@ export function CategoriesPanel({ className }: CategoriesPanelProps) {
           />
         </ModalBody>
       </Modal>
+
+      <DeleteConfirmationModal
+        open={Boolean(categoryToDelete)}
+        onClose={handleCloseDeleteCategoryModal}
+        onConfirm={handleConfirmDeleteCategory}
+        isSubmitting={deleteCategoryMutation.isPending}
+        itemName={categoryToDelete?.name ?? "this category"}
+      />
     </Card>
   );
 }

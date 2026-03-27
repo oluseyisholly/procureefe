@@ -14,12 +14,10 @@ import {
   deriveLeastUnit,
   deriveLeastUnitData,
   groupMarketRunCommodityDrafts,
+  resolveQuantityForUnit,
   type GroupedMarketItem,
 } from "@/lib/market-run/item";
-import {
-  DEFAULT_MARKET_RUN_MAX_QTY,
-  useMarketRunFlowStore,
-} from "@/store";
+import { useMarketRunFlowStore } from "@/store";
 import { Form, Formik, type FormikHelpers, type FormikProps } from "formik";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
@@ -30,6 +28,7 @@ type AddItemFormValues = {
   itemName: string;
   budgetPrice: string;
   minimumOrder: string;
+  maximumOrder: string;
 };
 
 const initialValues: AddItemFormValues = {
@@ -37,9 +36,8 @@ const initialValues: AddItemFormValues = {
   itemName: "",
   budgetPrice: "0",
   minimumOrder: "1",
+  maximumOrder: "",
 };
-
-const DERIVED_UNIT_MIN_QTY = 1;
 
 const addItemValidationSchema = yup.object({
   itemId: yup.string().trim().required("Select an item"),
@@ -64,6 +62,35 @@ const addItemValidationSchema = yup.object({
       const numberValue = Number(value);
       return Number.isInteger(numberValue) && numberValue > 0;
     }),
+  maximumOrder: yup
+    .string()
+    .trim()
+    .test("valid-max-order", "Enter a valid maximum order", (value) => {
+      const trimmedValue = (value ?? "").trim();
+      if (!trimmedValue) {
+        return true;
+      }
+      const numberValue = Number(trimmedValue);
+      return Number.isInteger(numberValue) && numberValue > 0;
+    })
+    .test(
+      "max-greater-than-min",
+      "Maximum order must be greater than or equal to minimum order",
+      function (value) {
+        const trimmedValue = (value ?? "").trim();
+        if (!trimmedValue) {
+          return true;
+        }
+
+        const minimumOrder = Number((this.parent as AddItemFormValues).minimumOrder);
+        const maximumOrder = Number(trimmedValue);
+        if (!Number.isFinite(minimumOrder) || !Number.isFinite(maximumOrder)) {
+          return true;
+        }
+
+        return maximumOrder >= minimumOrder;
+      },
+    ),
 });
 
 export default function MarketRunItemsPage() {
@@ -128,19 +155,46 @@ export default function MarketRunItemsPage() {
 
     const budgetPricePerBaseUnit = Number(values.budgetPrice);
     const minimumOrder = Number(values.minimumOrder);
-    const additionalRows = deriveAutoCalculatedRows(selectedCommodity);
+    const hasMaximumOrderInput = values.maximumOrder.trim() !== "";
+    const maximumOrderInLeastUnit = hasMaximumOrderInput
+      ? Number(values.maximumOrder)
+      : null;
+    const selectableRows = deriveAutoCalculatedRows(selectedCommodity);
+    const selectedRows = selectableRows.filter(
+      (row) => enabledUnitSelections[row.unitId] ?? true,
+    );
 
-    const additionalUnitDrafts = additionalRows
-      .filter((row) => enabledUnitSelections[row.unitId] ?? true)
+    if (selectedRows.length === 0) {
+      setSubmitting(false);
+      return;
+    }
+
+    const nextCommodityDrafts = selectedRows
       .map((row) => {
+        const isBaseUnit = row.isBaseUnit || row.unitId === leastUnit.id;
+        const resolvedMinimumOrder = resolveQuantityForUnit(
+          minimumOrder,
+          row.multiplier,
+          "minimum",
+        );
+        const resolvedMaximumOrder =
+          maximumOrderInLeastUnit === null
+            ? null
+            : resolveQuantityForUnit(
+                maximumOrderInLeastUnit,
+                row.multiplier,
+                "maximum",
+              );
         const overrideRaw = autoPriceOverrides[row.unitId];
         const parsedOverride =
           overrideRaw !== undefined && overrideRaw.trim() !== ""
             ? Number(overrideRaw)
             : NaN;
-        const resolvedPrice = Number.isFinite(parsedOverride)
-          ? parsedOverride
-          : budgetPricePerBaseUnit * row.multiplier;
+        const resolvedPrice = isBaseUnit
+          ? budgetPricePerBaseUnit
+          : Number.isFinite(parsedOverride)
+            ? parsedOverride
+            : budgetPricePerBaseUnit * row.multiplier;
 
         return {
           id: createMarketRunCommodityDraftId(),
@@ -148,25 +202,16 @@ export default function MarketRunItemsPage() {
           commodityName: selectedCommodity.name,
           commodityUnitId: row.unitId,
           commodityUnitName: row.label,
+          unitMultiplier: row.multiplier,
+          isLeastUnit: isBaseUnit,
           pricePerUnit: resolvedPrice,
-          minQty: DERIVED_UNIT_MIN_QTY,
-          maxQty: DEFAULT_MARKET_RUN_MAX_QTY,
+          minQty: resolvedMinimumOrder,
+          maxQty:
+            resolvedMaximumOrder === null
+              ? null
+              : Math.max(resolvedMaximumOrder, resolvedMinimumOrder),
         };
       });
-
-    const nextCommodityDrafts = [
-      {
-        id: createMarketRunCommodityDraftId(),
-        commodityId: selectedCommodity.id,
-        commodityName: selectedCommodity.name,
-        commodityUnitId: leastUnit.id,
-        commodityUnitName: leastUnit.name,
-        pricePerUnit: budgetPricePerBaseUnit,
-        minQty: minimumOrder,
-        maxQty: DEFAULT_MARKET_RUN_MAX_QTY,
-      },
-      ...additionalUnitDrafts,
-    ];
 
     replaceMarketRunCommodityDraftsForCommodity(
       selectedCommodity.id,
@@ -209,17 +254,36 @@ export default function MarketRunItemsPage() {
         : undefined;
       const fallbackDraft = item.drafts[0];
       const baseDraft = leastUnitDraft ?? fallbackDraft;
+      const autoRows = deriveAutoCalculatedRows(commodity);
+      const rowByUnitId = new Map(
+        autoRows.map((row) => [row.unitId, row] as const),
+      );
 
       if (!baseDraft) {
         throw new Error("No draft data available for this commodity.");
       }
 
-      const budgetPrice = baseDraft.pricePerUnit;
-      const minimumOrder = baseDraft.minQty;
+      const budgetPrice = leastUnitDraft
+        ? leastUnitDraft.pricePerUnit
+        : (() => {
+            const fallbackMultiplier =
+              rowByUnitId.get(baseDraft.commodityUnitId)?.multiplier ?? 1;
+            return baseDraft.pricePerUnit / fallbackMultiplier;
+          })();
+      const minimumOrder = leastUnitDraft?.minQty ?? 1;
+      const maximumOrder = leastUnitDraft
+        ? leastUnitDraft.maxQty
+        : (() => {
+            if (baseDraft.maxQty === null) {
+              return null;
+            }
+            const fallbackMultiplier =
+              rowByUnitId.get(baseDraft.commodityUnitId)?.multiplier ?? 1;
+            return Math.max(1, Math.floor(baseDraft.maxQty * fallbackMultiplier));
+          })();
       const draftByUnitId = new Map(
         item.drafts.map((draft) => [draft.commodityUnitId, draft] as const),
       );
-      const autoRows = deriveAutoCalculatedRows(commodity);
       const nextSelections: Record<string, boolean> = {};
       const nextOverrides: Record<string, string> = {};
 
@@ -228,7 +292,7 @@ export default function MarketRunItemsPage() {
         const isSelected = Boolean(matchingDraft);
         nextSelections[row.unitId] = isSelected;
 
-        if (!matchingDraft) {
+        if (!matchingDraft || row.isBaseUnit) {
           continue;
         }
 
@@ -247,6 +311,7 @@ export default function MarketRunItemsPage() {
         itemName: commodity.name,
         budgetPrice: String(budgetPrice),
         minimumOrder: String(minimumOrder),
+        maximumOrder: maximumOrder === null ? "" : String(maximumOrder),
       });
       formikRef.current?.setTouched({});
     } catch (error) {
@@ -293,10 +358,13 @@ export default function MarketRunItemsPage() {
             onSubmit={handleAddItemSubmit}
             validateOnMount
           >
-            {({ values, isSubmitting, isValid }) => {
+            {({ values, isSubmitting }) => {
               const budgetPrice = Number(values.budgetPrice || 0);
               const leastUnitName = deriveLeastUnit(selectedCommodity);
               const autoCalculatedRows = deriveAutoCalculatedRows(selectedCommodity);
+              const hasAtLeastOneSelected = autoCalculatedRows.some(
+                (row) => enabledUnitSelections[row.unitId] ?? true,
+              );
               const autoCalculatedPrices: AutoCalculatedPriceRowViewModel[] =
                 autoCalculatedRows.map((row) => {
                   const autoCalculatedValue =
@@ -309,8 +377,11 @@ export default function MarketRunItemsPage() {
                     label: row.label,
                     autoCalculatedValue,
                     isEnabled,
+                    isPriceReadOnly: row.isBaseUnit,
                     inputValue:
-                      overrideValue !== undefined
+                      row.isBaseUnit
+                        ? values.budgetPrice
+                        : overrideValue !== undefined
                         ? overrideValue
                         : autoCalculatedValue.toFixed(2),
                   };
@@ -335,15 +406,30 @@ export default function MarketRunItemsPage() {
                     className="h-11 rounded-[6px] border-[#98A2B3]"
                   />
 
-                  <FormikInput
-                    name="minimumOrder"
-                    label={`Minimum Order (${leastUnitName})`}
-                    helperText={`Applies only to ${leastUnitName} (conversion factor 1). Other selected units use minimum quantity ${DERIVED_UNIT_MIN_QTY}.`}
-                    type="number"
-                    min={1}
-                    step={1}
-                    className="h-11 rounded-[6px] border-[#98A2B3]"
-                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormikInput
+                      name="minimumOrder"
+                      label={`Minimum Order (${leastUnitName})`}
+                      type="number"
+                      min={1}
+                      step={1}
+                      className="h-11 rounded-[6px] border-[#98A2B3]"
+                    />
+                    <FormikInput
+                      name="maximumOrder"
+                      label={`Maximum Order (${leastUnitName})`}
+                      helperText="Optional. Leave empty to send no maximum order."
+                      placeholder="Optional"
+                      type="number"
+                      min={1}
+                      step={1}
+                      className="h-11 rounded-[6px] border-[#98A2B3]"
+                    />
+                  </div>
+                  <p className="text-[11px] text-[#98A2B3]">
+                    Minimum and maximum values are entered in {leastUnitName}. Higher
+                    units are auto-resolved to whole numbers and never to zero.
+                  </p>
 
                   <AutoCalculatedPrices
                     rows={autoCalculatedPrices}
@@ -356,12 +442,17 @@ export default function MarketRunItemsPage() {
                     onPriceChange={handleAutoPriceChange}
                     onPriceBlur={handleAutoPriceBlur}
                   />
+                  {autoCalculatedRows.length > 0 && !hasAtLeastOneSelected ? (
+                    <p className="text-sm text-red-600">
+                      Select at least one unit before adding this item.
+                    </p>
+                  ) : null}
 
                   <div className="flex items-center justify-between gap-3">
                     <Button
                       type="submit"
                       color="blue"
-                      disabled={!isValid || isSubmitting}
+                      disabled={isSubmitting || !hasAtLeastOneSelected}
                     >
                       {isSubmitting ? "Adding..." : "Add"}
                     </Button>
@@ -389,9 +480,18 @@ export default function MarketRunItemsPage() {
               color="slate"
               variant="outline"
               className="w-[200px]"
+              onClick={() => router.push("/dashboard")}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              color="slate"
+              variant="primary"
+              className="w-[200px] bg-[#6B7280] text-white hover:bg-[#5F6774]"
               onClick={() => router.push("/market-run/details")}
             >
-              Back
+              Back: Details
             </Button>
             <Button
               type="button"

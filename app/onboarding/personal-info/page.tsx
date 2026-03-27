@@ -8,6 +8,8 @@ import { OnBoardingHeader } from "@/components/onboarding/header";
 import { Button } from "@/components/ui/button";
 import { FormikInput } from "@/components/ui/input";
 import PhonePrefix from "@/components/ui/phonePrefix";
+import { getApiErrorMessage } from "@/lib/api";
+import { useCheckPhoneUniqueMutation } from "@/lib/api/users";
 import { useOnboardingFlowStore } from "@/store";
 
 type PersonalInfoFormValues = {
@@ -50,6 +52,7 @@ const personalInfoValidationSchema = yup.object({
 
 export default function PersonalInfoPage() {
   const router = useRouter();
+  const checkPhoneUniqueMutation = useCheckPhoneUniqueMutation();
   const { onboardingDraft, setOnboardingDraft } = useOnboardingFlowStore();
   const initialValues = useMemo<PersonalInfoFormValues>(
     () => ({
@@ -61,17 +64,46 @@ export default function PersonalInfoPage() {
     [onboardingDraft.fullName, onboardingDraft.phoneNumber],
   );
 
-  function handleSubmit(
+  async function handleSubmit(
     values: PersonalInfoFormValues,
-    { setSubmitting }: FormikHelpers<PersonalInfoFormValues>
+    {
+      setFieldError,
+      setStatus,
+      setSubmitting,
+    }: FormikHelpers<PersonalInfoFormValues>,
   ) {
-    setOnboardingDraft({
-      fullName: values.fullName.trim(),
-      phoneNumber: values.phoneNumber.trim(),
-      // contactAddress: values.contactAddress.trim(),
-    });
-    setSubmitting(false);
-    router.push("/onboarding/business-info");
+    setStatus(undefined);
+
+    const normalizedPhone = values.phoneNumber.replace(/\D/g, "").trim();
+
+    try {
+      const phoneCheckResponse =
+        await checkPhoneUniqueMutation.mutateAsync(normalizedPhone);
+
+      if (!phoneCheckResponse.data.isUnique) {
+        setFieldError(
+          "phoneNumber",
+          "This phone number is already in use. Try another number.",
+        );
+        return;
+      }
+
+      setOnboardingDraft({
+        fullName: values.fullName.trim(),
+        phoneNumber: normalizedPhone,
+        // contactAddress: values.contactAddress.trim(),
+      });
+      router.push("/onboarding/business-info");
+    } catch (error) {
+      setStatus(
+        getApiErrorMessage(
+          error,
+          "We could not verify this phone number right now. Please try again.",
+        ),
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -91,6 +123,7 @@ export default function PersonalInfoPage() {
         {({
           isSubmitting,
           setFieldValue,
+          status,
         }) => {
           return (
             <Form className="space-y-4">
@@ -126,6 +159,10 @@ export default function PersonalInfoPage() {
                 label="Provide your Picture"
                 accept=".jpg,.jpeg,.png,image/jpeg,image/png"
               /> */}
+
+              {typeof status === "string" ? (
+                <p className="text-sm text-red-600">{status}</p>
+              ) : null}
 
               <div className="pt-7">
                 <Button type="submit" className="w-full" disabled={isSubmitting}>

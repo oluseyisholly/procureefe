@@ -71,3 +71,4 @@ export type GetCommoditiesResponse = ApiSuccessResponse<PaginatedCommoditiesData
 
 export type CreateCommodityResponse = ApiSuccessResponse<Commodity>;
 export type UpdateCommodityResponse = ApiSuccessResponse<Commodity>;
+export type DeleteCommodityResponse = ApiSuccessResponse<unknown>;

@@ -1,7 +1,7 @@
 export type MarketRunCommodityPayload = {
   pricePerUnit: number;
   minQty: number;
-  maxQty: number;
+  maxQty: number | null;
   commodityUnitId: string;
   commodityId: string;
 };

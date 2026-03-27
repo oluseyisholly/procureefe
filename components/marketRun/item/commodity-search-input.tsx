@@ -57,6 +57,8 @@ export function CommoditySearchInput({
     page: 1,
     perPage: 25,
     searchQuery: debouncedSearchValue,
+  }, {
+    enabled: isDropdownOpen,
   });
 
   const commodityOptions = useMemo(

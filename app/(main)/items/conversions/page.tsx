@@ -21,6 +21,7 @@ import * as yup from "yup";
 type ConversionRow = {
   quantity: string;
   unitName: string;
+  isBaseUnit?: boolean;
 };
 
 type ItemConversionFormValues = {
@@ -49,10 +50,21 @@ const validationSchema = yup.object({
 });
 
 function createEmptyRow(quantity = "1"): ConversionRow {
-  return { quantity, unitName: "" };
+  return { quantity, unitName: "", isBaseUnit: false };
+}
+
+function createBaseUnitRow(baseUnitId: string): ConversionRow {
+  return {
+    quantity: "1",
+    unitName: baseUnitId.trim(),
+    isBaseUnit: true,
+  };
 }
 
 function getConversionHint(row: ConversionRow, baseUnitId: string): string {
+  if (row.isBaseUnit) {
+    return "Base unit is fixed at 1.";
+  }
   const unitName = row.unitName.trim() || "unit";
   const quantityValue = Number(row.quantity);
   const quantity =
@@ -67,6 +79,7 @@ function buildCommodityUnits(
 ): CommodityUnitPayload[] {
   const normalizedBaseUnitName = baseUnitId.trim();
   const normalizedConversions = conversions
+    .filter((row) => !row.isBaseUnit)
     .map((row) => ({
       unitName: row.unitName.trim(),
       quantity: Number(row.quantity),
@@ -110,16 +123,16 @@ export default function ItemConversionsPage() {
 
   const initialValues = useMemo<ItemConversionFormValues>(
     () => ({
-      conversions: (
-        itemConversionsDraft.length
-          ? itemConversionsDraft
-          : [{ quantity: "4", unitName: "" }]
-      ).map((row) => ({
-        quantity: row.quantity,
-        unitName: row.unitName,
-      })),
+      conversions: [
+        createBaseUnitRow(itemDetailsDraft.baseUnitId),
+        ...itemConversionsDraft.map((row) => ({
+          quantity: row.quantity,
+          unitName: row.unitName,
+          isBaseUnit: false,
+        })),
+      ],
     }),
-    [itemConversionsDraft],
+    [itemConversionsDraft, itemDetailsDraft.baseUnitId],
   );
 
   useEffect(() => {
@@ -150,7 +163,13 @@ export default function ItemConversionsPage() {
     { setSubmitting }: FormikHelpers<ItemConversionFormValues>,
   ) {
     try {
-      setItemConversionsDraft(values.conversions);
+      const conversionDraftRows = values.conversions
+        .filter((row) => !row.isBaseUnit)
+        .map((row) => ({
+          quantity: row.quantity,
+          unitName: row.unitName,
+        }));
+      setItemConversionsDraft(conversionDraftRows);
 
       const normalizedItemName = itemDetailsDraft.itemName.trim();
       const normalizedDescription =
@@ -227,6 +246,7 @@ export default function ItemConversionsPage() {
                             row,
                             itemDetailsDraft.baseUnitId,
                           )}
+                          disabled={row.isBaseUnit}
                         />
 
                         <span className="pt-3 text-base font-semibold text-[#1F2933]">
@@ -236,21 +256,22 @@ export default function ItemConversionsPage() {
                         <FormikInput
                           name={`conversions.${index}.unitName`}
                           placeholder="eg. Derica"
+                          disabled={row.isBaseUnit}
                         />
 
-                        <IconButton
-                          label={`Delete conversion row ${index + 1}`}
-                          onClick={() => {
-                            if (values.conversions.length === 1) {
-                              setFieldValue("conversions.0", createEmptyRow());
-                              return;
-                            }
-                            remove(index);
-                          }}
-                          className="mt-3 text-red-300 transition-colors hover:text-red-500"
-                        >
-                          <DeleteIcon className="h-4 w-4" />
-                        </IconButton>
+                        {row.isBaseUnit ? (
+                          <span className="mt-3 inline-flex h-9 w-9" aria-hidden />
+                        ) : (
+                          <IconButton
+                            label={`Delete conversion row ${index + 1}`}
+                            onClick={() => {
+                              remove(index);
+                            }}
+                            className="mt-3 text-red-300 transition-colors hover:text-red-500"
+                          >
+                            <DeleteIcon className="h-4 w-4" />
+                          </IconButton>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -259,8 +280,18 @@ export default function ItemConversionsPage() {
                     type="button"
                     color="blue"
                     onClick={() => {
-                      const lastIndex = values.conversions.length - 1;
-                      const lastRow = values.conversions[lastIndex];
+                      const editableRows = values.conversions
+                        .map((row, index) => ({ row, index }))
+                        .filter(({ row }) => !row.isBaseUnit);
+
+                      const lastEditableRow = editableRows[editableRows.length - 1];
+                      if (!lastEditableRow) {
+                        push(createEmptyRow());
+                        return;
+                      }
+
+                      const lastIndex = lastEditableRow.index;
+                      const lastRow = lastEditableRow.row;
                       const hasValidQuantity = Number(lastRow.quantity) > 0;
                       const hasUnitName = Boolean(lastRow.unitName.trim());
 
@@ -295,7 +326,13 @@ export default function ItemConversionsPage() {
                   color="slate"
                   variant="outline"
                   onClick={() => {
-                    setItemConversionsDraft(values.conversions);
+                    const conversionDraftRows = values.conversions
+                      .filter((row) => !row.isBaseUnit)
+                      .map((row) => ({
+                        quantity: row.quantity,
+                        unitName: row.unitName,
+                      }));
+                    setItemConversionsDraft(conversionDraftRows);
                     const detailsRoute =
                       itemFlowMode === "update" && editingCommodityId
                         ? `/items/${editingCommodityId}/details`

@@ -10,6 +10,7 @@ import { FormikInput } from "@/components/ui/input";
 import { useCreateAdminUserMutation } from "@/lib/api/users";
 import { getApiErrorMessage } from "@/lib/api";
 import { useOnboardingFlowStore } from "@/store";
+import { useSnackbar } from "@/store/hooks/use-snackbar";
 
 type BusinessInfoFormValues = {
   businessName: string;
@@ -31,6 +32,7 @@ const businessInfoValidationSchema = yup.object({
 
 export default function BusinessInfoPage() {
   const router = useRouter();
+  const { showError } = useSnackbar();
   const createAdminUserMutation = useCreateAdminUserMutation();
   const { onboardingDraft, setOnboardingDraft } = useOnboardingFlowStore();
   const initialValues = useMemo<BusinessInfoFormValues>(
@@ -44,12 +46,9 @@ export default function BusinessInfoPage() {
   async function handleSubmit(
     values: BusinessInfoFormValues,
     {
-      setStatus,
       setSubmitting,
     }: FormikHelpers<BusinessInfoFormValues>,
   ) {
-    setStatus(undefined);
-
     const normalizedFullName = onboardingDraft.fullName.trim();
     const [firstName = "", ...lastNameParts] = normalizedFullName.split(/\s+/);
     const lastName = lastNameParts.join(" ").trim();
@@ -62,8 +61,11 @@ export default function BusinessInfoPage() {
       !firstName ||
       !lastName
     ) {
-      setStatus(
+      showError(
         "Some onboarding data is missing. Please complete previous steps before continuing.",
+        {
+          title: "Incomplete Onboarding",
+        },
       );
       setSubmitting(false);
       return;
@@ -90,7 +92,9 @@ export default function BusinessInfoPage() {
 
       router.push("/onboarding/invite-members");
     } catch (error) {
-      setStatus(getApiErrorMessage(error, "Unable to create business."));
+      showError(getApiErrorMessage(error, "Unable to create business."), {
+        title: "Create Business Failed",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -110,7 +114,7 @@ export default function BusinessInfoPage() {
         onSubmit={handleSubmit}
         enableReinitialize
       >
-        {({ values, isSubmitting, status }) => (
+        {({ values, isSubmitting }) => (
           <Form className="space-y-8">
             <FormikInput
               name="businessName"
@@ -123,10 +127,6 @@ export default function BusinessInfoPage() {
               label="Business Description"
               placeholder="enter business description"
             />
-
-            {typeof status === "string" ? (
-              <p className="text-sm text-red-600">{status}</p>
-            ) : null}
 
             <div className="grid grid-cols-2 gap-3">
               <Button

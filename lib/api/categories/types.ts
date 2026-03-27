@@ -51,3 +51,4 @@ type ApiSuccessResponse<TData> = {
 
 export type CreateCategoryResponse = ApiSuccessResponse<Category>;
 export type UpdateCategoryResponse = ApiSuccessResponse<Category>;
+export type DeleteCategoryResponse = ApiSuccessResponse<unknown>;

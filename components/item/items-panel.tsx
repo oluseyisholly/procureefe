@@ -5,15 +5,23 @@ import { EditIcon } from "@/components/icons/edit";
 import { ViewIcon } from "@/components/icons/view";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { DataTable, type DataTableColumn } from "@/components/ui/table";
-import { useCommoditiesQuery, type Commodity, type CommodityUnit } from "@/lib/api/commodities";
+import {
+  useCommoditiesQuery,
+  useDeleteCommodityMutation,
+  type Commodity,
+  type CommodityUnit,
+} from "@/lib/api/commodities";
 import { getApiErrorMessage } from "@/lib/api/error";
 import { cn } from "@/lib/utils";
 import { useItemFlowStore } from "@/store";
+import { useSnackbar } from "@/store/hooks/use-snackbar";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ItemViewModal } from "./item-view-modal";
 import { SearchIcon } from "./search-icon";
 
 type ItemTone = "amber" | "sky" | "orange" | "slate" | "emerald" | "indigo";
@@ -91,6 +99,38 @@ function toConversionRows(
   });
 }
 
+function normalizeQuantityLabel(quantity: string): string {
+  const parsedQuantity = Number(quantity);
+  if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+    return "1";
+  }
+
+  if (Number.isInteger(parsedQuantity)) {
+    return String(parsedQuantity);
+  }
+
+  return String(Number(parsedQuantity.toFixed(4)));
+}
+
+function formatUnitName(unitName: string, quantity: string): string {
+  const normalizedUnitName = unitName.trim().toLowerCase();
+  if (!normalizedUnitName) {
+    return "unit";
+  }
+
+  const parsedQuantity = Number(quantity);
+  if (parsedQuantity === 1 || normalizedUnitName.endsWith("s")) {
+    return normalizedUnitName;
+  }
+
+  return `${normalizedUnitName}s`;
+}
+
+function formatConversionValue(quantity: string, baseUnitName: string): string {
+  const normalizedQuantity = normalizeQuantityLabel(quantity);
+  return `${normalizedQuantity} ${formatUnitName(baseUnitName, normalizedQuantity)}`;
+}
+
 function ItemThumbnail({ itemName }: { itemName: string }) {
   const tone = toItemTone(itemName);
 
@@ -112,11 +152,15 @@ type ItemsPanelProps = {
 };
 
 export function ItemsPanel({ className }: ItemsPanelProps) {
+  const { showError, showSuccess } = useSnackbar();
   const router = useRouter();
   const { resetItemFlow, startUpdateItemFlow } = useItemFlowStore();
   const [itemSearch, setItemSearch] = useState("");
   const [debouncedItemSearch, setDebouncedItemSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemToView, setItemToView] = useState<ItemRow | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<ItemRow | null>(null);
+  const deleteCommodityMutation = useDeleteCommodityMutation();
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -180,6 +224,52 @@ export function ItemsPanel({ className }: ItemsPanelProps) {
     router.push(`/items/${itemRow.commodity.id}/details`);
   }, [router, startUpdateItemFlow]);
 
+  const handleOpenDeleteItemModal = useCallback((itemRow: ItemRow) => {
+    setItemToDelete(itemRow);
+  }, []);
+
+  const handleOpenViewItemModal = useCallback((itemRow: ItemRow) => {
+    setItemToView(itemRow);
+  }, []);
+
+  const handleCloseViewItemModal = useCallback(() => {
+    setItemToView(null);
+  }, []);
+
+  const handleEditFromViewItemModal = useCallback(() => {
+    if (!itemToView) {
+      return;
+    }
+
+    setItemToView(null);
+    handleStartUpdateItemFlow(itemToView);
+  }, [handleStartUpdateItemFlow, itemToView]);
+
+  const handleCloseDeleteItemModal = useCallback(() => {
+    if (deleteCommodityMutation.isPending) {
+      return;
+    }
+    setItemToDelete(null);
+  }, [deleteCommodityMutation.isPending]);
+
+  const handleConfirmDeleteItem = useCallback(async () => {
+    if (!itemToDelete) {
+      return;
+    }
+
+    try {
+      const response = await deleteCommodityMutation.mutateAsync(
+        itemToDelete.commodity.id,
+      );
+      showSuccess(response.message || "Item deleted successfully.");
+      setItemToDelete(null);
+    } catch (error) {
+      showError(getApiErrorMessage(error, "Unable to delete item."), {
+        title: "Deletion Failed",
+      });
+    }
+  }, [deleteCommodityMutation, itemToDelete, showError, showSuccess]);
+
   const itemColumns = useMemo<DataTableColumn<ItemRow>[]>(
     () => [
       {
@@ -220,6 +310,7 @@ export function ItemsPanel({ className }: ItemsPanelProps) {
           <div className="flex items-center justify-center gap-2 text-[#98A2B3]">
             <IconButton
               label={`View ${row.name}`}
+              onClick={() => handleOpenViewItemModal(row)}
               className="inline-flex items-center justify-center rounded-sm text-[#98A2B3] transition-colors hover:text-[#667085]"
             >
               <ViewIcon className="h-4 w-4" />
@@ -233,6 +324,7 @@ export function ItemsPanel({ className }: ItemsPanelProps) {
             </IconButton>
             <IconButton
               label={`Delete ${row.name}`}
+              onClick={() => handleOpenDeleteItemModal(row)}
               className="inline-flex items-center justify-center rounded-sm transition-opacity hover:opacity-80"
             >
               <DeleteIcon className="h-4 w-4" />
@@ -242,8 +334,29 @@ export function ItemsPanel({ className }: ItemsPanelProps) {
         cellClassName: "w-[130px]",
       },
     ],
-    [handleStartUpdateItemFlow],
+    [handleOpenDeleteItemModal, handleOpenViewItemModal, handleStartUpdateItemFlow],
   );
+
+  const viewedItemBaseUnit = useMemo(() => {
+    if (!itemToView) {
+      return "-";
+    }
+
+    return deriveBaseUnit(itemToView.commodity.units)?.name ?? "-";
+  }, [itemToView]);
+
+  const viewedItemConversions = useMemo(() => {
+    if (!itemToView) {
+      return [];
+    }
+
+    const baseUnit = deriveBaseUnit(itemToView.commodity.units);
+    const baseUnitName = baseUnit?.name ?? itemToView.base ?? "unit";
+    return toConversionRows(itemToView.commodity.units, baseUnit).map((row) => ({
+      unitName: row.unitName,
+      value: formatConversionValue(row.quantity, baseUnitName),
+    }));
+  }, [itemToView]);
 
   const emptyStateMessage = itemsErrorMessage
     ? itemsErrorMessage
@@ -300,6 +413,24 @@ export function ItemsPanel({ className }: ItemsPanelProps) {
       {commoditiesQuery.isFetching && !commoditiesQuery.isPending ? (
         <p className="mt-2 text-[11px] text-[#98A2B3]">Updating items...</p>
       ) : null}
+
+      <DeleteConfirmationModal
+        open={Boolean(itemToDelete)}
+        onClose={handleCloseDeleteItemModal}
+        onConfirm={handleConfirmDeleteItem}
+        isSubmitting={deleteCommodityMutation.isPending}
+        itemName={itemToDelete?.name ?? "this item"}
+      />
+
+      <ItemViewModal
+        open={Boolean(itemToView)}
+        onClose={handleCloseViewItemModal}
+        onEdit={handleEditFromViewItemModal}
+        itemName={itemToView?.name ?? "-"}
+        categoryName={itemToView?.category ?? "-"}
+        baseUnitName={viewedItemBaseUnit}
+        conversions={viewedItemConversions}
+      />
     </Card>
   );
 }

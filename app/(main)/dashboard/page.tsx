@@ -10,14 +10,18 @@ import { ViewIcon } from "@/components/icons/view";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { IconButton } from "@/components/ui/icon-button";
+import { Modal } from "@/components/ui/modal";
 import { DataTable, type DataTableColumn } from "@/components/ui/table";
 import { getApiUserProfile } from "@/lib/api/axios";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import type { DashboardStatusFilter, MarketRunRow } from "@/store";
 import {
   useDashboardFilters,
   useDashboardRows,
 } from "@/store/hooks/use-dashboard-store";
+
+const DASHBOARD_WELCOME_STORAGE_KEY = "procureefe_dashboard_welcome_seen";
 
 const STATUS_FILTER_OPTIONS: Array<{
   label: string;
@@ -54,8 +58,25 @@ const columns: DataTableColumn<MarketRunRow>[] = [
 export default function DashboardPage() {
   const router = useRouter();
   const rows = useDashboardRows();
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const currentUserProfile = getApiUserProfile();
   const firstName = currentUserProfile?.firstName ?? "there";
+
+  useEffect(() => {
+    const hasSeenWelcome = window.localStorage.getItem(
+      DASHBOARD_WELCOME_STORAGE_KEY,
+    );
+    if (hasSeenWelcome === "1") {
+      return;
+    }
+
+    setShowWelcomeModal(true);
+  }, []);
+
+  function closeWelcomeModal() {
+    window.localStorage.setItem(DASHBOARD_WELCOME_STORAGE_KEY, "1");
+    setShowWelcomeModal(false);
+  }
 
   return (
     <>
@@ -119,6 +140,72 @@ export default function DashboardPage() {
           <DashboardSidePanel/>
         </Card>
       </div>
+
+      <Modal
+        open={showWelcomeModal}
+        onClose={closeWelcomeModal}
+        showCloseButton={false}
+        closeOnBackdropClick={false}
+        panelClassName="max-w-[384px] rounded-[10px] border border-[#D0D5DD] sm:px-[89px] py-12"
+      >
+        <div className="space-y-8">
+          <div className="space-y-2 text-center">
+            <h2 className="text-[28px] font-[600] text-[#1F2933]">
+              Welcome to MarketRuns
+            </h2>
+            <p className="text-[16px] font-[500] text-[#9CA3AF]">
+              Your admin account is all set up. Let&apos;s get your first market
+              run started.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              {
+                iconSrc: "/welcome-build-items.svg",
+                title: "Build your Items catalogue",
+                subtitle: "Add products, units, and Conversion",
+              },
+              {
+                iconSrc: "/welcome-invite-members.svg",
+                title: "Invite team members",
+                subtitle: "Invite members into the system",
+              },
+              {
+                iconSrc: "/welcome-create-market-run.svg",
+                title: "Create your first market run",
+                subtitle: "Set dates and invite Procurees to start requesting",
+              },
+              {
+                iconSrc: "/welcome-review-plan.svg",
+                title: "Review & plan your market visit",
+                subtitle: "See aggregated demand and estimated costs",
+              },
+            ].map((step) => (
+              <div key={step.title} className="flex items-start gap-3">
+                <img
+                  src={step.iconSrc}
+                  alt=""
+                  width={30}
+                  height={30}
+                  className="mt-0.5 h-[30px] w-[30px] shrink-0"
+                  aria-hidden
+                />
+                <div>
+                  <p className="text-[12px] font-[500] text-[#1F2933]">{step.title}</p>
+                  <p className="text-[11px] font-[400] text-[#9CA3AF]">
+                    {step.subtitle}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Button className="w-full" onClick={closeWelcomeModal}>
+            Proceed to Dashboard
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

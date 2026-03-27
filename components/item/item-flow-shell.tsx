@@ -6,6 +6,8 @@ import { Stepper } from "../ui/stepper";
 
 export function ItemFlowShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const itemIdMatch = pathname.match(/^\/items\/([^/]+)\/(?:details|conversions)(?:\/|$)/);
+  const itemFlowBasePath = itemIdMatch ? `/items/${itemIdMatch[1]}` : "/items";
   const isConversionsStep = /^\/items(?:\/[^/]+)?\/conversions(?:\/|$)/.test(
     pathname,
   );
@@ -15,7 +17,10 @@ export function ItemFlowShell({ children }: { children: ReactNode }) {
     <div className="flex">
       <div className="flex flex-1 flex-col items-center gap-[27px]">
         <Stepper
-          steps={["Details", "Conversions"]}
+          steps={[
+            { label: "Details", href: `${itemFlowBasePath}/details` },
+            { label: "Conversions", href: `${itemFlowBasePath}/conversions` },
+          ]}
           currentStep={currentStep}
           className="!max-w-[188px]"
         />

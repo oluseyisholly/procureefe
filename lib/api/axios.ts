@@ -120,7 +120,6 @@ function bindNetworkListeners() {
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",

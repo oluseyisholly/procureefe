@@ -1,9 +1,15 @@
 export {
   useCreateCommodityMutation,
+  useDeleteCommodityMutation,
   useUpdateCommodityMutation,
 } from "./mutations";
 export { commoditiesQueryKeys, useCommoditiesQuery } from "./queries";
-export { createCommodity, getCommodities, updateCommodity } from "./service";
+export {
+  createCommodity,
+  deleteCommodity,
+  getCommodities,
+  updateCommodity,
+} from "./service";
 export type {
   Commodity,
   CommodityCategory,
@@ -12,6 +18,7 @@ export type {
   CommodityUnitType,
   CreateCommodityPayload,
   CreateCommodityResponse,
+  DeleteCommodityResponse,
   GetCommoditiesPayload,
   GetCommoditiesResponse,
   UpdateCommodityPayload,

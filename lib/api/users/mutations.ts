@@ -2,7 +2,12 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { setApiAccessToken, setApiUserProfile } from "@/lib/api/axios";
-import { createAdminUser, signInUser } from "./service";
+import {
+  checkEmailUnique,
+  checkPhoneUnique,
+  createAdminUser,
+  signInUser,
+} from "./service";
 import type { CreateAdminPayload, SignInPayload } from "./types";
 
 export function useSignInMutation() {
@@ -42,5 +47,17 @@ export function useCreateAdminUserMutation() {
         phone: payload.phone,
       });
     },
+  });
+}
+
+export function useCheckEmailUniqueMutation() {
+  return useMutation({
+    mutationFn: (email: string) => checkEmailUnique(email),
+  });
+}
+
+export function useCheckPhoneUniqueMutation() {
+  return useMutation({
+    mutationFn: (phone: string) => checkPhoneUnique(phone),
   });
 }

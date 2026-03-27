@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import type {
   CreateCategoryPayload,
   CreateCategoryResponse,
+  DeleteCategoryResponse,
   GetCategoriesPayload,
   GetCategoriesResponse,
   UpdateCategoryPayload,
@@ -50,6 +51,14 @@ export async function updateCategory(
   const response = await apiClient.patch<UpdateCategoryResponse>(
     API_ENDPOINTS.categories.index,
     payload,
+  );
+
+  return response.data;
+}
+
+export async function deleteCategory(id: string): Promise<DeleteCategoryResponse> {
+  const response = await apiClient.delete<DeleteCategoryResponse>(
+    `${API_ENDPOINTS.categories.index}/${encodeURIComponent(id)}`,
   );
 
   return response.data;

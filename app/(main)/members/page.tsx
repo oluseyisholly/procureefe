@@ -14,8 +14,8 @@ export default function MembersPage() {
       </div>
 
       <div className="mt-[20px] grid grid-cols-1 gap-3 lg:grid-cols-8">
-        <MembersSummaryPanel className="lg:col-span-2" />
         <MembersTablePanel className="lg:col-span-6" />
+        <MembersSummaryPanel className="lg:col-span-2" />
       </div>
     </>
   );

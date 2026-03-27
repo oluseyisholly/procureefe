@@ -9,6 +9,7 @@ export type AutoCalculatedPriceRowViewModel = {
   autoCalculatedValue: number;
   isEnabled: boolean;
   inputValue: string;
+  isPriceReadOnly?: boolean;
 };
 
 type AutoCalculatedPricesProps = {
@@ -33,10 +34,7 @@ export function AutoCalculatedPrices({
       {rows.length ? (
         <div className="mt-3 space-y-2">
           {rows.map((priceRow) => (
-            <div
-              key={priceRow.unitId}
-              className="flex items-center justify-between gap-4"
-            >
+            <div key={priceRow.unitId} className="flex items-center justify-between gap-4">
               <label
                 className="flex items-center gap-2 text-sm text-[#334155]"
                 htmlFor={`unit-toggle-${priceRow.unitId}`}
@@ -54,16 +52,21 @@ export function AutoCalculatedPrices({
               </label>
               <div className="min-w-[160px]">
                 <Input
-                  type="number"
+                  type={priceRow.isEnabled ? "number" : "text"}
                   min={0}
                   step="0.01"
-                  value={priceRow.inputValue}
+                  value={priceRow.isEnabled ? priceRow.inputValue : "----"}
                   disabled={!priceRow.isEnabled}
+                  readOnly={priceRow.isPriceReadOnly}
                   onChange={(event) =>
                     onPriceChange(priceRow.unitId, event.target.value)
                   }
                   onBlur={(event) => onPriceBlur(priceRow.unitId, event.target.value)}
-                  className="h-[36px] rounded-[6px] border-[#98A2B3] bg-white text-sm font-medium text-[#475467]"
+                  className={`h-[36px] rounded-[6px] border text-sm font-medium ${
+                    priceRow.isEnabled
+                      ? "border-[#98A2B3] bg-white text-[#475467]"
+                      : "border-[#E4E7EC] bg-[#EAECF0] text-[#98A2B3]"
+                  } ${priceRow.isPriceReadOnly ? "cursor-default" : ""}`}
                   aria-label={`${priceRow.label} price`}
                 />
                 <p className="mt-1 text-[11px] text-[#98A2B3]">

@@ -29,6 +29,10 @@ export type CreateAdminData = {
   [key: string]: unknown;
 };
 
+export type UniquenessCheckData = {
+  isUnique: boolean;
+};
+
 export type ApiSuccessResponse<TData> = {
   code: number;
   message: string;
@@ -37,3 +41,5 @@ export type ApiSuccessResponse<TData> = {
 
 export type SignInResponse = ApiSuccessResponse<SignInData>;
 export type CreateAdminResponse = ApiSuccessResponse<CreateAdminData>;
+export type CheckEmailUniqueResponse = ApiSuccessResponse<UniquenessCheckData>;
+export type CheckPhoneUniqueResponse = ApiSuccessResponse<UniquenessCheckData>;

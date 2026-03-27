@@ -5,6 +5,7 @@ export type AutoCalculatedRow = {
   unitId: string;
   label: string;
   multiplier: number;
+  isBaseUnit: boolean;
 };
 
 export type GroupedMarketItem = {
@@ -58,21 +59,54 @@ export function deriveAutoCalculatedRows(commodity: Commodity | null): AutoCalcu
     return [];
   }
 
-  const leastUnitName = deriveLeastUnit(commodity);
+  const leastUnit = deriveLeastUnitData(commodity);
 
   return commodity.units
     .map((unit) => ({
       unitId: unit.id,
       label: unit.name,
       multiplier: Number(unit.conversionFactor),
+      isBaseUnit: leastUnit ? unit.id === leastUnit.id : false,
     }))
     .filter(
       (unit) =>
         Number.isFinite(unit.multiplier) &&
-        unit.multiplier > 0 &&
-        unit.label !== leastUnitName,
+        unit.multiplier > 0,
     )
-    .sort((a, b) => a.multiplier - b.multiplier);
+    .sort((a, b) => {
+      if (a.isBaseUnit && !b.isBaseUnit) {
+        return -1;
+      }
+      if (!a.isBaseUnit && b.isBaseUnit) {
+        return 1;
+      }
+      return a.multiplier - b.multiplier;
+    });
+}
+
+export function resolveQuantityForUnit(
+  quantityInLeastUnit: number,
+  multiplier: number,
+  mode: "minimum" | "maximum",
+): number {
+  if (!Number.isFinite(quantityInLeastUnit) || quantityInLeastUnit <= 0) {
+    return 1;
+  }
+
+  if (!Number.isFinite(multiplier) || multiplier <= 0) {
+    return Math.max(1, Math.floor(quantityInLeastUnit));
+  }
+
+  const resolvedRaw = quantityInLeastUnit / multiplier;
+  if (!Number.isFinite(resolvedRaw) || resolvedRaw <= 0) {
+    return 1;
+  }
+
+  if (mode === "minimum") {
+    return Math.max(1, Math.ceil(resolvedRaw));
+  }
+
+  return Math.max(1, Math.floor(resolvedRaw));
 }
 
 export function groupMarketRunCommodityDrafts(
