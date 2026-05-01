@@ -7,7 +7,11 @@ import ReviewSummaryRow from "@/components/marketRun/reviewSummaryRow";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { getApiErrorMessage } from "@/lib/api";
-import { useCreateMarketRunMutation } from "@/lib/api/market-runs";
+import {
+  useCreateMarketRunMutation,
+  useUpdateMarketRunMutation,
+  useUpdatePublishMarketRunMutation,
+} from "@/lib/api/market-runs";
 import { type MarketRunCommodityDraft, useMarketRunFlowStore } from "@/store";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -110,12 +114,21 @@ function sortByUnitSize(
 export default function MarketRunReviewPage() {
   const router = useRouter();
   const createMarketRunMutation = useCreateMarketRunMutation();
+  const updateMarketRunMutation = useUpdateMarketRunMutation();
+  const updatePublishMarketRunMutation = useUpdatePublishMarketRunMutation();
   const [publishError, setPublishError] = useState<string | null>(null);
   const {
+    marketRunFlowMode,
+    editingMarketRunId,
     marketRunDetailsDraft,
     marketRunCommodityDrafts,
     resetMarketRunFlow,
   } = useMarketRunFlowStore();
+  const isUpdateMode = marketRunFlowMode === "update";
+  const isMutationPending =
+    createMarketRunMutation.isPending ||
+    updateMarketRunMutation.isPending ||
+    updatePublishMarketRunMutation.isPending;
 
   const reviewSummaryRows = useMemo(
     () => [
@@ -174,6 +187,49 @@ export default function MarketRunReviewPage() {
     Boolean(marketRunDetailsDraft.marketRunDate) &&
     marketRunCommodityDrafts.length > 0;
 
+  function buildMarketRunPayload() {
+    return {
+      name: marketRunDetailsDraft.description.trim(),
+      requestEndDate: toApiDate(marketRunDetailsDraft.bookingEndDate),
+      marketRunDate: toApiDate(marketRunDetailsDraft.marketRunDate),
+      marketRunCommodities: marketRunCommodityDrafts.map((draft) => ({
+        pricePerUnit: draft.pricePerUnit,
+        minQty: draft.minQty,
+        maxQty: draft.maxQty,
+        commodityUnitId: draft.commodityUnitId,
+        commodityId: draft.commodityId,
+      })),
+    };
+  }
+
+  async function handleSaveDraft() {
+    setPublishError(null);
+
+    if (!isUpdateMode || !editingMarketRunId) {
+      setPublishError("This market run is not in edit mode.");
+      return;
+    }
+
+    if (!canPublish) {
+      setPublishError(
+        "Complete run details and add at least one commodity unit before saving.",
+      );
+      return;
+    }
+
+    try {
+      await updateMarketRunMutation.mutateAsync({
+        id: editingMarketRunId,
+        ...buildMarketRunPayload(),
+      });
+
+      resetMarketRunFlow();
+      router.push("/dashboard");
+    } catch (error) {
+      setPublishError(getApiErrorMessage(error, "Unable to update market run."));
+    }
+  }
+
   async function handlePublish() {
     setPublishError(null);
 
@@ -185,23 +241,31 @@ export default function MarketRunReviewPage() {
     }
 
     try {
-      await createMarketRunMutation.mutateAsync({
-        name: marketRunDetailsDraft.description.trim(),
-        requestEndDate: toApiDate(marketRunDetailsDraft.bookingEndDate),
-        marketRunDate: toApiDate(marketRunDetailsDraft.marketRunDate),
-        marketRunCommodities: marketRunCommodityDrafts.map((draft) => ({
-          pricePerUnit: draft.pricePerUnit,
-          minQty: draft.minQty,
-          maxQty: draft.maxQty,
-          commodityUnitId: draft.commodityUnitId,
-          commodityId: draft.commodityId,
-        })),
-      });
+      if (isUpdateMode) {
+        if (!editingMarketRunId) {
+          setPublishError("This market run is not in edit mode.");
+          return;
+        }
+
+        await updatePublishMarketRunMutation.mutateAsync({
+          id: editingMarketRunId,
+          ...buildMarketRunPayload(),
+        });
+      } else {
+        await createMarketRunMutation.mutateAsync(buildMarketRunPayload());
+      }
 
       resetMarketRunFlow();
       router.push("/dashboard");
     } catch (error) {
-      setPublishError(getApiErrorMessage(error, "Unable to publish market run."));
+      setPublishError(
+        getApiErrorMessage(
+          error,
+          isUpdateMode
+            ? "Unable to update and publish market run."
+            : "Unable to publish market run.",
+        ),
+      );
     }
   }
 
@@ -267,17 +331,26 @@ export default function MarketRunReviewPage() {
           >
             Back: Items
           </Button>
-          <Button type="button" color="blue" disabled>
-            Save as Draft
+          <Button
+            type="button"
+            color="blue"
+            onClick={() => void handleSaveDraft()}
+            disabled={!isUpdateMode || !canPublish || isMutationPending}
+          >
+            {updateMarketRunMutation.isPending ? "Saving..." : "Save as Draft"}
           </Button>
           <Button
             type="button"
             onClick={handlePublish}
-            disabled={createMarketRunMutation.isPending}
+            disabled={isMutationPending}
           >
             {createMarketRunMutation.isPending
               ? "Publishing..."
-              : "Publish Market Run"}
+              : updatePublishMarketRunMutation.isPending
+                ? "Updating..."
+                : isUpdateMode
+                  ? "Update & Publish Market Run"
+                  : "Publish Market Run"}
           </Button>
         </div>
       </div>

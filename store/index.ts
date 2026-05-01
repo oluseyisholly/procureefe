@@ -17,6 +17,7 @@ export type {
 export type {
   MarketRunCommodityDraft,
   MarketRunDetailsDraft,
+  MarketRunFlowMode,
   MarketRunFlowSlice,
 } from "./slices/market-run-flow-slice";
 export { DEFAULT_MARKET_RUN_MAX_QTY } from "./slices/market-run-flow-slice";

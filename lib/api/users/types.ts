@@ -33,6 +33,40 @@ export type UniquenessCheckData = {
   isUnique: boolean;
 };
 
+export type GetMembersPayload = {
+  page?: number;
+  pageSize?: number;
+};
+
+export type TenantMemberUser = {
+  id: string;
+  created_at: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+};
+
+export type TenantMemberGroup = {
+  id: string;
+  name: string;
+};
+
+export type TenantMember = {
+  id: string;
+  role: string;
+  user: TenantMemberUser;
+  group: TenantMemberGroup;
+};
+
+export type GetMembersData = {
+  data: TenantMember[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export type ApiSuccessResponse<TData> = {
   code: number;
   message: string;
@@ -43,3 +77,4 @@ export type SignInResponse = ApiSuccessResponse<SignInData>;
 export type CreateAdminResponse = ApiSuccessResponse<CreateAdminData>;
 export type CheckEmailUniqueResponse = ApiSuccessResponse<UniquenessCheckData>;
 export type CheckPhoneUniqueResponse = ApiSuccessResponse<UniquenessCheckData>;
+export type GetMembersResponse = ApiSuccessResponse<GetMembersData>;

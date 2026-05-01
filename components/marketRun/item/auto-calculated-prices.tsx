@@ -1,5 +1,6 @@
 "use client";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { formatNaira } from "@/lib/market-run/item";
 
@@ -39,14 +40,13 @@ export function AutoCalculatedPrices({
                 className="flex items-center gap-2 text-sm text-[#334155]"
                 htmlFor={`unit-toggle-${priceRow.unitId}`}
               >
-                <input
+                <Checkbox
                   id={`unit-toggle-${priceRow.unitId}`}
-                  type="checkbox"
                   checked={priceRow.isEnabled}
                   onChange={(event) =>
                     onToggleUnit(priceRow.unitId, event.target.checked)
                   }
-                  className="h-4 w-4 rounded border-[#98A2B3] accent-[#067647]"
+                  className="h-4 w-4 border-[#98A2B3] checked:border-[#067647] checked:bg-[#067647]"
                 />
                 {priceRow.label}
               </label>

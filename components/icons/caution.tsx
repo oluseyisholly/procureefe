@@ -13,9 +13,9 @@ export function CautionIcon(props: SVGProps<SVGSVGElement>) {
       <path
         d="M7.00002 9.33332V6.99999M7.00002 4.66666H7.00585M12.8334 6.99999C12.8334 10.2217 10.2217 12.8333 7.00002 12.8333C3.77836 12.8333 1.16669 10.2217 1.16669 6.99999C1.16669 3.77833 3.77836 1.16666 7.00002 1.16666C10.2217 1.16666 12.8334 3.77833 12.8334 6.99999Z"
         stroke="#1F2933"
-        stroke-width="0.583333"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        strokeWidth="0.583333"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

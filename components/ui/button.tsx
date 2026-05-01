@@ -10,7 +10,7 @@ type ButtonVariant =
   | "outline"
   | "danger"
   | "success";
-type ButtonColor = "emerald" | "blue" | "slate" | "red";
+type ButtonColor = "emerald" | "blue" | "slate" | "red" | "amber";
 type ButtonSize = "xs" | "sm" | "default" | "lg" | "xl" | "icon";
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -69,6 +69,15 @@ const colorTokens: Record<
     danger: "bg-red-700 text-white hover:bg-red-600",
     success: "bg-emerald-600 text-white hover:bg-emerald-500",
     ring: "focus-visible:ring-red-500",
+  },
+  amber: {
+    primary: "bg-[#F59E0B] text-[#000000] hover:bg-[#D97706]",
+    secondary: "bg-[#FEF3C7] text-[#92400E] hover:bg-[#FDE68A]",
+    ghost: "bg-transparent text-[#B45309] hover:bg-[#FFFBEB]",
+    outline: "border border-[#F59E0B] text-[#92400E] hover:bg-[#FFFBEB]",
+    danger: "bg-red-700 text-white hover:bg-red-600",
+    success: "bg-emerald-600 text-white hover:bg-emerald-500",
+    ring: "focus-visible:ring-[#F59E0B]",
   },
 };
 

@@ -6,6 +6,8 @@ import { useAppStore } from "../app-store";
 export function useMarketRunFlowStore() {
   return useAppStore(
     useShallow((state) => ({
+      marketRunFlowMode: state.marketRunFlowMode,
+      editingMarketRunId: state.editingMarketRunId,
       marketRunDetailsDraft: state.marketRunDetailsDraft,
       marketRunCommodityDrafts: state.marketRunCommodityDrafts,
       setMarketRunDetailsDraft: state.setMarketRunDetailsDraft,
@@ -16,6 +18,7 @@ export function useMarketRunFlowStore() {
       removeMarketRunCommodityDraftsByCommodityId:
         state.removeMarketRunCommodityDraftsByCommodityId,
       clearMarketRunCommodityDrafts: state.clearMarketRunCommodityDrafts,
+      startUpdateMarketRunFlow: state.startUpdateMarketRunFlow,
       resetMarketRunFlow: state.resetMarketRunFlow,
     })),
   );

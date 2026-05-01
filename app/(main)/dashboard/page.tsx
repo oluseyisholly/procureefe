@@ -2,6 +2,7 @@
 
 import DashBoardCard from "@/components/dashboard/card";
 import { DashboardSidePanel } from "@/components/dashboard/dashboard-side-panel";
+import { EditIcon } from "@/components/icons/edit";
 import { ItemsNavIcon } from "@/components/icons/items-nav-icon";
 import { MarketRunNavIcon } from "@/components/icons/market-run-nav-icon";
 import { MembersNavIcon } from "@/components/icons/members-nav-icon";
@@ -13,54 +14,119 @@ import { IconButton } from "@/components/ui/icon-button";
 import { Modal } from "@/components/ui/modal";
 import { DataTable, type DataTableColumn } from "@/components/ui/table";
 import { getApiUserProfile } from "@/lib/api/axios";
+import { useMarketRunsQuery } from "@/lib/api/market-runs";
+import { useMarketRunFlowStore } from "@/store";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import type { DashboardStatusFilter, MarketRunRow } from "@/store";
-import {
-  useDashboardFilters,
-  useDashboardRows,
-} from "@/store/hooks/use-dashboard-store";
+import { useEffect, useMemo, useState } from "react";
 
 const DASHBOARD_WELCOME_STORAGE_KEY = "procureefe_dashboard_welcome_seen";
 
-const STATUS_FILTER_OPTIONS: Array<{
-  label: string;
-  value: DashboardStatusFilter;
-}> = [
-  { label: "All Status", value: "all" },
-  { label: "Open", value: "Open" },
-  { label: "Closed", value: "Closed" },
-];
+type DashboardMarketRunTableRow = {
+  id: string;
+  date: string;
+  description: string;
+  items: string;
+  members: string;
+  status: string;
+  totalAmount: string;
+};
 
-const columns: DataTableColumn<MarketRunRow>[] = [
-  { id: "date", header: "Date", accessorKey: "date" },
-  { id: "description", header: "Description", accessorKey: "description" },
-  { id: "items", header: "Items", accessorKey: "items" },
-  { id: "members", header: "Members", accessorKey: "members" },
-  { id: "status", header: "Status", accessorKey: "status" },
-  { id: "totalAmount", header: "Total Amount", accessorKey: "totalAmount" },
-  {
-    id: "actions",
-    header: "Actions",
-    align: "center",
-    cellClassName: "text-slate-500",
-    cell: (row) => (
-      <IconButton
-        label={`View ${row.description} market run`}
-        className="inline-flex items-center justify-center text-slate-500 transition-colors hover:text-slate-700"
-      >
-        <ViewIcon className="h-4 w-4" />
-      </IconButton>
-    ),
-  },
-];
+function withFallback(value: string | null | undefined): string {
+  const normalized = value?.trim();
+  return normalized ? normalized : "-";
+}
+
+function formatMarketRunDate(value: string | null | undefined): string {
+  if (!value) {
+    return "-";
+  }
+
+  const dateValue = new Date(value);
+  if (Number.isNaN(dateValue.getTime())) {
+    return "-";
+  }
+
+  return dateValue.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatMarketRunStatus(value: string | null | undefined): string {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return "-";
+  }
+
+  return normalized
+    .toLowerCase()
+    .split("_")
+    .filter(Boolean)
+    .map((chunk) => chunk[0].toUpperCase() + chunk.slice(1))
+    .join(" ");
+}
 
 export default function DashboardPage() {
   const router = useRouter();
-  const rows = useDashboardRows();
+  const { resetMarketRunFlow } = useMarketRunFlowStore();
+  const [currentPage, setCurrentPage] = useState(1);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const marketRunsQuery = useMarketRunsQuery({ page: currentPage, perPage: 6 });
   const currentUserProfile = getApiUserProfile();
   const firstName = currentUserProfile?.firstName ?? "there";
+
+  const rows = useMemo<DashboardMarketRunTableRow[]>(() => {
+    const marketRuns = marketRunsQuery.data?.data.data ?? [];
+
+    return marketRuns.map((marketRun) => ({
+      id: marketRun.id,
+      date: formatMarketRunDate(
+        marketRun.marketRunDate ?? marketRun.requestEndDate ?? marketRun.requestStartDate,
+      ),
+      description: withFallback(marketRun.name),
+      items: "-",
+      members: "-",
+      status: formatMarketRunStatus(marketRun.status),
+      totalAmount: "-",
+    }));
+  }, [marketRunsQuery.data]);
+
+  const columns = useMemo<DataTableColumn<DashboardMarketRunTableRow>[]>(
+    () => [
+      { id: "date", header: "Date", accessorKey: "date" },
+      { id: "description", header: "Description", accessorKey: "description" },
+      { id: "items", header: "Items", accessorKey: "items" },
+      { id: "members", header: "Members", accessorKey: "members" },
+      { id: "status", header: "Status", accessorKey: "status" },
+      { id: "totalAmount", header: "Total Amount", accessorKey: "totalAmount" },
+      {
+        id: "actions",
+        header: "Actions",
+        align: "center",
+        cellClassName: "text-slate-500",
+        cell: (row) => (
+          <div className="flex items-center justify-center gap-2">
+            <IconButton
+              label={`View ${row.description !== "-" ? row.description : "market run"}`}
+              className="inline-flex items-center justify-center text-slate-500 transition-colors hover:text-slate-700"
+              onClick={() => router.push(`/market-run/${row.id}`)}
+            >
+              <ViewIcon className="h-4 w-4" />
+            </IconButton>
+            <IconButton
+              label={`Edit ${row.description !== "-" ? row.description : "market run"}`}
+              className="inline-flex items-center justify-center transition-opacity hover:opacity-80"
+              onClick={() => router.push(`/market-run/${row.id}/edit`)}
+            >
+              <EditIcon />
+            </IconButton>
+          </div>
+        ),
+      },
+    ],
+    [router],
+  );
 
   useEffect(() => {
     const hasSeenWelcome = window.localStorage.getItem(
@@ -120,7 +186,10 @@ export default function DashboardPage() {
             <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
               <Button
                 type="button"
-                onClick={() => router.push("/market-run/details")}
+                onClick={() => {
+                  resetMarketRunFlow();
+                  router.push("/market-run/details");
+                }}
               >
                 Create Market Runs
               </Button>
@@ -130,8 +199,20 @@ export default function DashboardPage() {
               columns={columns}
               rows={rows}
               rowKey="id"
-              pagination={{ pageSize: 6 }}
-              emptyState="No market runs match your filters."
+              pagination={{
+                mode: "server",
+                currentPage: marketRunsQuery.data?.data.page ?? currentPage,
+                totalPages: marketRunsQuery.data?.data.totalPages ?? 1,
+                onPageChange: setCurrentPage,
+                isLoading: marketRunsQuery.isLoading || marketRunsQuery.isFetching,
+              }}
+              emptyState={
+                marketRunsQuery.isLoading
+                  ? "Loading market runs..."
+                  : marketRunsQuery.isError
+                    ? "Unable to load market runs."
+                    : "No market runs found."
+              }
             />
           </Card>
         </div>

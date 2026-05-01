@@ -22,6 +22,8 @@ export const useAppStore = create<AppStore>()(
       name: MARKET_RUN_FLOW_STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
+        marketRunFlowMode: state.marketRunFlowMode,
+        editingMarketRunId: state.editingMarketRunId,
         marketRunDetailsDraft: state.marketRunDetailsDraft,
         marketRunCommodityDrafts: state.marketRunCommodityDrafts,
       }),

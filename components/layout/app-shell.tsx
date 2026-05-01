@@ -11,7 +11,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen">
       <div className="flex flex-1 flex-col">
         <AppHeader activePath={pathname} />
-        <main className="flex-1 bg-[#E9F4EE] overflow-y-auto px-6 py-10">{children}</main>
+        <main className="flex-1 bg-[#E9F4EE] px-6 py-10">{children}</main>
       </div>
     </div>
   );

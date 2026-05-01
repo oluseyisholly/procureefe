@@ -55,7 +55,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={setInputRef}
           className={cn(
-            "w-full rounded-lg bg-transparent px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
+            "min-w-0 flex-1 rounded-lg bg-transparent px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
             prefix ? "pl-3" : "",
             suffix ? "pr-2" : "",
             isDateInput &&
@@ -68,12 +68,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             <IconButton
               label="Open date picker"
               onClick={openDatePicker}
-              className="inline-flex items-center justify-center pr-3 text-slate-500"
+              className="inline-flex shrink-0 items-center justify-center px-3 text-slate-500"
             >
               {suffix}
             </IconButton>
           ) : (
-            <span className="pr-3 text-slate-500">{suffix}</span>
+            <span className="shrink-0 px-3 text-slate-500">{suffix}</span>
           )
         ) : null}
       </div>

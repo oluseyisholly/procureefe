@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
+import { NameInitialBadge } from "@/components/ui/name-initial-badge";
 import { DataTable, type DataTableColumn } from "@/components/ui/table";
 import {
   useCommoditiesQuery,
@@ -24,8 +25,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ItemViewModal } from "./item-view-modal";
 import { SearchIcon } from "./search-icon";
 
-type ItemTone = "amber" | "sky" | "orange" | "slate" | "emerald" | "indigo";
-
 type ItemRow = {
   id: string;
   serial: number;
@@ -37,23 +36,6 @@ type ItemRow = {
 
 const SEARCH_DEBOUNCE_MS = 300;
 const ITEMS_PAGE_SIZE = 7;
-
-const THUMBNAIL_TONE_STYLES: Record<ItemTone, string> = {
-  amber: "bg-amber-100 text-amber-800",
-  sky: "bg-sky-100 text-sky-800",
-  orange: "bg-orange-100 text-orange-800",
-  slate: "bg-slate-200 text-slate-700",
-  emerald: "bg-emerald-100 text-emerald-800",
-  indigo: "bg-indigo-100 text-indigo-800",
-};
-
-function toItemTone(itemName: string): ItemTone {
-  const tones: ItemTone[] = ["amber", "sky", "orange", "slate", "emerald", "indigo"];
-  const hash = itemName
-    .split("")
-    .reduce((sum, character) => sum + character.charCodeAt(0), 0);
-  return tones[hash % tones.length];
-}
 
 function deriveBaseUnit(units: CommodityUnit[]): CommodityUnit | null {
   if (!units.length) {
@@ -129,22 +111,6 @@ function formatUnitName(unitName: string, quantity: string): string {
 function formatConversionValue(quantity: string, baseUnitName: string): string {
   const normalizedQuantity = normalizeQuantityLabel(quantity);
   return `${normalizedQuantity} ${formatUnitName(baseUnitName, normalizedQuantity)}`;
-}
-
-function ItemThumbnail({ itemName }: { itemName: string }) {
-  const tone = toItemTone(itemName);
-
-  return (
-    <span
-      className={cn(
-        "inline-flex h-[22px] w-[22px] items-center justify-center rounded-[6px] text-[10px] font-semibold",
-        THUMBNAIL_TONE_STYLES[tone],
-      )}
-      aria-hidden="true"
-    >
-      {itemName.charAt(0)}
-    </span>
-  );
 }
 
 type ItemsPanelProps = {
@@ -284,7 +250,7 @@ export function ItemsPanel({ className }: ItemsPanelProps) {
         header: "Name",
         cell: (row) => (
           <div className="flex items-center gap-2.5">
-            <ItemThumbnail itemName={row.name} />
+            <NameInitialBadge name={row.name} />
             <span className="font-medium text-[#344054]">{row.name}</span>
           </div>
         ),

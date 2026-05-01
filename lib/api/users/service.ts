@@ -5,6 +5,8 @@ import type {
   CheckPhoneUniqueResponse,
   CreateAdminPayload,
   CreateAdminResponse,
+  GetMembersPayload,
+  GetMembersResponse,
   SignInPayload,
   SignInResponse,
 } from "./types";
@@ -51,6 +53,19 @@ export async function checkPhoneUnique(
       params: {
         phone,
       },
+    },
+  );
+
+  return response.data;
+}
+
+export async function getMembers(
+  payload: GetMembersPayload = {},
+): Promise<GetMembersResponse> {
+  const response = await apiClient.get<GetMembersResponse>(
+    API_ENDPOINTS.users.members,
+    {
+      params: payload,
     },
   );
 

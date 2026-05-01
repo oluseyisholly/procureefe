@@ -54,7 +54,7 @@ function SnackbarStatusIcon({
         xmlns="http://www.w3.org/2000/svg"
         {...prop}
       >
-        <g clip-path="url(#clip0_463_473)">
+        <g clipPath="url(#clip0_463_473)">
           <path
             d="M17.0497 25.8681L32.7219 10.1943L35.1345 12.6051L17.0497 30.6898L6.19922 19.8393L8.61006 17.4285L17.0497 25.8681Z"
             fill="#16A34A"

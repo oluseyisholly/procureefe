@@ -44,7 +44,7 @@ export type DataTableProps<T extends TableRowData> = {
   rowKey?: keyof T | ((row: T, rowIndex: number) => string);
   pagination?: DataTablePagination | DataTableServerPagination;
   emptyState?: ReactNode;
-  variant?: "default" | "clean";
+  variant?: "default" | "clean" | "soft";
   className?: string;
   tableClassName?: string;
 };
@@ -112,6 +112,7 @@ export function DataTable<T extends TableRowData>({
                 "text-xs font-semibold uppercase tracking-wide",
                 variant === "default" && "bg-slate-200 text-slate-500",
                 variant === "clean" && "bg-[#D1D5DB] text-[#111827]",
+                variant === "soft" && "bg-[#D1D5DB] text-[#6B7280]",
               )}
             >
               {columns.map((column) => (
@@ -149,6 +150,8 @@ export function DataTable<T extends TableRowData>({
                     variant === "default" &&
                       (rowIndex % 2 === 0 ? "bg-slate-50" : "bg-slate-100/70"),
                     variant === "clean" && "bg-white",
+                    variant === "soft" &&
+                      (rowIndex % 2 === 0 ? "bg-[#FFFFFF]" : "bg-[#F8FAFC]"),
                     "last:border-b-0"
                   )}
                 >

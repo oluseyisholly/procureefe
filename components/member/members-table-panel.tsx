@@ -1,121 +1,39 @@
 "use client";
 
+import { ViewIcon } from "@/components/icons/view";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { DataTable, type DataTableColumn } from "@/components/ui/table";
+import type { TenantMember } from "@/lib/api/users";
+import {
+  getMemberInitials,
+  mapTenantMemberToTableRow,
+  type MemberStatus,
+  type MemberTableRow,
+  type MemberTone,
+} from "@/lib/member/view-model";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { Invite } from "../dashboard/invite";
 import { SearchIcon } from "../item/search-icon";
 import { Modal, ModalBody } from "../ui/modal";
-import { Invite } from "../dashboard/invite";
 
-type MemberStatus = "Active" | "Inactive" | "Pending";
-
-type MemberRow = {
-  id: string;
-  serial: number;
-  name: string;
-  phoneNumber: string;
-  dateJoined: string;
-  status: MemberStatus;
-  tone: "rose" | "sky" | "amber" | "emerald" | "slate";
+type MembersTablePanelProps = {
+  className?: string;
+  members: TenantMember[];
+  currentPage: number;
+  pageSize: number;
+  totalPages: number;
+  isLoading?: boolean;
+  isRefreshing?: boolean;
+  errorMessage?: string;
+  onPageChange: (page: number) => void;
 };
 
-const MEMBERS: MemberRow[] = [
-  {
-    id: "member-1",
-    serial: 1,
-    name: "Ngozi Obi",
-    phoneNumber: "+234(0) 81 4072 8393",
-    dateJoined: "12/02/2026",
-    status: "Active",
-    tone: "rose",
-  },
-  {
-    id: "member-2",
-    serial: 2,
-    name: "Ifeoma Okeke",
-    phoneNumber: "+234(0) 81 4072 8393",
-    dateJoined: "12/02/2026",
-    status: "Inactive",
-    tone: "sky",
-  },
-  {
-    id: "member-3",
-    serial: 3,
-    name: "Fatima Musa",
-    phoneNumber: "+234(0) 81 4072 8393",
-    dateJoined: "12/02/2026",
-    status: "Active",
-    tone: "amber",
-  },
-  {
-    id: "member-4",
-    serial: 4,
-    name: "Chukwuemeka Eze",
-    phoneNumber: "+234(0) 81 4072 8393",
-    dateJoined: "12/02/2026",
-    status: "Pending",
-    tone: "emerald",
-  },
-  {
-    id: "member-5",
-    serial: 5,
-    name: "Aisha Bello",
-    phoneNumber: "+234(0) 81 4072 8393",
-    dateJoined: "12/02/2026",
-    status: "Active",
-    tone: "slate",
-  },
-  {
-    id: "member-6",
-    serial: 6,
-    name: "Babatunde Adebayo",
-    phoneNumber: "+234(0) 81 4072 8393",
-    dateJoined: "12/02/2026",
-    status: "Inactive",
-    tone: "rose",
-  },
-  {
-    id: "member-7",
-    serial: 7,
-    name: "Emeka Okoro",
-    phoneNumber: "+234(0) 81 4072 8393",
-    dateJoined: "12/02/2026",
-    status: "Pending",
-    tone: "sky",
-  },
-  {
-    id: "member-8",
-    serial: 8,
-    name: "Tosin Adeyemi",
-    phoneNumber: "+234(0) 81 4072 8393",
-    dateJoined: "12/02/2026",
-    status: "Active",
-    tone: "amber",
-  },
-  {
-    id: "member-9",
-    serial: 9,
-    name: "Kemi Daniels",
-    phoneNumber: "+234(0) 81 4072 8393",
-    dateJoined: "12/02/2026",
-    status: "Inactive",
-    tone: "emerald",
-  },
-  {
-    id: "member-10",
-    serial: 10,
-    name: "Rasheed Balogun",
-    phoneNumber: "+234(0) 81 4072 8393",
-    dateJoined: "12/02/2026",
-    status: "Active",
-    tone: "slate",
-  },
-];
-
-const avatarToneStyles: Record<MemberRow["tone"], string> = {
+const avatarToneStyles: Record<MemberTone, string> = {
   rose: "bg-rose-100 text-rose-700",
   sky: "bg-sky-100 text-sky-700",
   amber: "bg-amber-100 text-amber-700",
@@ -144,73 +62,13 @@ const statusStyles: Record<
   },
 };
 
-const MEMBER_COLUMNS: DataTableColumn<MemberRow>[] = [
-  {
-    id: "serial",
-    header: "S/N",
-    accessorKey: "serial",
-    headerClassName: "w-[72px]",
-    cellClassName: "text-[#667085]",
-  },
-  {
-    id: "name",
-    header: "Name",
-    cell: (row) => (
-      <div className="flex items-center gap-2.5">
-        <MemberAvatar name={row.name} tone={row.tone} />
-        <span className="font-medium text-[#344054]">{row.name}</span>
-      </div>
-    ),
-    cellClassName: "min-w-[220px]",
-  },
-  {
-    id: "phoneNumber",
-    header: "Phone Number",
-    accessorKey: "phoneNumber",
-    cellClassName: "text-[#475467]",
-  },
-  {
-    id: "dateJoined",
-    header: "Date Joined",
-    accessorKey: "dateJoined",
-    cellClassName: "text-[#475467]",
-  },
-  {
-    id: "status",
-    header: "Status",
-    align: "center",
-    cell: (row) => {
-      const style = statusStyles[row.status];
-      return (
-        <span
-          className={cn(
-            "inline-flex min-w-[84px] items-center justify-center gap-1 rounded-[8px] px-2 py-1 text-xs font-semibold",
-            style.wrapper,
-            style.text,
-          )}
-        >
-          <span className={cn("h-2 w-2 rounded-full", style.dot)} />
-          <span>{row.status}</span>
-        </span>
-      );
-    },
-  },
-];
-
 function MemberAvatar({
   name,
   tone,
 }: {
   name: string;
-  tone: MemberRow["tone"];
+  tone: MemberTone;
 }) {
-  const initials = name
-    .split(" ")
-    .map((chunk) => chunk[0] ?? "")
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
   return (
     <span
       className={cn(
@@ -218,29 +76,123 @@ function MemberAvatar({
         avatarToneStyles[tone],
       )}
     >
-      {initials}
+      {getMemberInitials(name)}
     </span>
   );
 }
 
-export function MembersTablePanel({ className }: { className?: string }) {
+export function MembersTablePanel({
+  className,
+  members,
+  currentPage,
+  pageSize,
+  totalPages,
+  isLoading = false,
+  isRefreshing = false,
+  errorMessage,
+  onPageChange,
+}: MembersTablePanelProps) {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const memberRows = useMemo(
+    () =>
+      members.map((member, index) =>
+        mapTenantMemberToTableRow(member, index, currentPage, pageSize),
+      ),
+    [currentPage, members, pageSize],
+  );
 
   const filteredMembers = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     if (!query) {
-      return MEMBERS;
+      return memberRows;
     }
 
-    return MEMBERS.filter(
+    return memberRows.filter(
       (member) =>
         member.name.toLowerCase().includes(query) ||
         member.phoneNumber.toLowerCase().includes(query) ||
+        member.email.toLowerCase().includes(query) ||
         member.status.toLowerCase().includes(query),
     );
-  }, [searchTerm]);
+  }, [memberRows, searchTerm]);
+
+  const memberColumns = useMemo<DataTableColumn<MemberTableRow>[]>(
+    () => [
+      {
+        id: "serial",
+        header: "S/N",
+        accessorKey: "serial",
+        headerClassName: "w-[72px]",
+        cellClassName: "text-[#667085]",
+      },
+      {
+        id: "name",
+        header: "Name",
+        cell: (row) => (
+          <div className="flex items-center gap-2.5">
+            <MemberAvatar name={row.name} tone={row.tone} />
+            <span className="font-medium text-[#344054]">{row.name}</span>
+          </div>
+        ),
+        cellClassName: "min-w-[220px]",
+      },
+      {
+        id: "email",
+        header: "Email",
+        accessorKey: "email",
+        cellClassName: "min-w-[220px] text-[#475467]",
+      },
+      {
+        id: "phoneNumber",
+        header: "Phone Number",
+        accessorKey: "phoneNumber",
+        cellClassName: "text-[#475467]",
+      },
+      {
+        id: "dateJoined",
+        header: "Date Joined",
+        accessorKey: "dateJoined",
+        cellClassName: "text-[#475467]",
+      },
+      {
+        id: "status",
+        header: "Status",
+        align: "center",
+        cell: (row) => {
+          const style = statusStyles[row.status];
+          return (
+            <span
+              className={cn(
+                "inline-flex min-w-[84px] items-center justify-center gap-1 rounded-[8px] px-2 py-1 text-xs font-semibold",
+                style.wrapper,
+                style.text,
+              )}
+            >
+              <span className={cn("h-2 w-2 rounded-full", style.dot)} />
+              <span>{row.status}</span>
+            </span>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "Action",
+        align: "center",
+        cell: (row) => (
+          <IconButton
+            label={`View ${row.name}`}
+            onClick={() => router.push(`/members/${row.id}`)}
+            className="text-[#98A2B3] transition-colors hover:text-[#667085]"
+          >
+            <ViewIcon className="h-4 w-4" />
+          </IconButton>
+        ),
+      },
+    ],
+    [router],
+  );
 
   return (
     <Card
@@ -270,17 +222,34 @@ export function MembersTablePanel({ className }: { className?: string }) {
         </Button>
       </div>
 
+      {errorMessage ? (
+        <p className="mt-4 text-sm font-medium text-red-600">{errorMessage}</p>
+      ) : null}
+
       <div className="mt-5 overflow-hidden rounded-[8px] bg-white">
         <DataTable
-          columns={MEMBER_COLUMNS}
+          columns={memberColumns}
           rows={filteredMembers}
           rowKey="id"
           variant="clean"
-          pagination={{ pageSize: 7 }}
+          pagination={{
+            mode: "server",
+            currentPage,
+            totalPages,
+            onPageChange,
+            isLoading: isRefreshing,
+          }}
           tableClassName="text-xs"
-          emptyState="No members match your search."
+          emptyState={
+            isLoading
+              ? "Loading members..."
+              : searchTerm.trim()
+                ? "No members match your search."
+                : "No members available yet."
+          }
         />
       </div>
+
       <Modal
         open={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}

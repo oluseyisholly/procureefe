@@ -61,7 +61,7 @@ export function AppHeader({ activePath }: AppHeaderProps) {
   }, [isNotificationOpen]);
 
   return (
-    <header className="relative z-[2000] flex items-center justify-between border-b border-emerald-100 bg-white/80 px-[40px] py-[16px] backdrop-blur">
+    <header className="sticky top-0 z-[2000] flex items-center justify-between border-b border-emerald-100 bg-white/80 px-[40px] py-[16px] backdrop-blur">
       <div className="flex items-center">
         <ProcureeLogo className="h-8 sm:h-9" />
       </div>

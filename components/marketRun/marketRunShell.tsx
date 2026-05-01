@@ -6,6 +6,15 @@ import { Stepper } from "../ui/stepper";
 
 export function MarketRunShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isMarketRunFlowRoute =
+    pathname.startsWith("/market-run/details") ||
+    pathname.startsWith("/market-run/item") ||
+    pathname.startsWith("/market-run/review");
+
+  if (!isMarketRunFlowRoute) {
+    return <div className="w-full">{children}</div>;
+  }
+
   const currentStep = pathname.startsWith("/market-run/review")
     ? 3
     : pathname.startsWith("/market-run/item")

@@ -3,6 +3,8 @@ import type { AppStore } from "../types";
 
 export const DEFAULT_MARKET_RUN_MAX_QTY = 100000;
 
+export type MarketRunFlowMode = "create" | "update";
+
 export type MarketRunDetailsDraft = {
   description: string;
   bookingEndDate: string;
@@ -46,6 +48,8 @@ function cloneMarketRunCommodityDrafts(
 }
 
 export type MarketRunFlowSlice = {
+  marketRunFlowMode: MarketRunFlowMode;
+  editingMarketRunId: string | null;
   marketRunDetailsDraft: MarketRunDetailsDraft;
   marketRunCommodityDrafts: MarketRunCommodityDraft[];
   setMarketRunDetailsDraft: (payload: Partial<MarketRunDetailsDraft>) => void;
@@ -57,6 +61,11 @@ export type MarketRunFlowSlice = {
   removeMarketRunCommodityDraft: (draftId: string) => void;
   removeMarketRunCommodityDraftsByCommodityId: (commodityId: string) => void;
   clearMarketRunCommodityDrafts: () => void;
+  startUpdateMarketRunFlow: (payload: {
+    marketRunId: string;
+    details: Partial<MarketRunDetailsDraft>;
+    commodityDrafts: MarketRunCommodityDraft[];
+  }) => void;
   resetMarketRunFlow: () => void;
 };
 
@@ -66,6 +75,8 @@ export const createMarketRunFlowSlice: StateCreator<
   [],
   MarketRunFlowSlice
 > = (set) => ({
+  marketRunFlowMode: "create",
+  editingMarketRunId: null,
   marketRunDetailsDraft: initialMarketRunDetailsDraft,
   marketRunCommodityDrafts: [],
   setMarketRunDetailsDraft: (payload) =>
@@ -104,8 +115,20 @@ export const createMarketRunFlowSlice: StateCreator<
       ),
     })),
   clearMarketRunCommodityDrafts: () => set({ marketRunCommodityDrafts: [] }),
+  startUpdateMarketRunFlow: ({ marketRunId, details, commodityDrafts }) =>
+    set({
+      marketRunFlowMode: "update",
+      editingMarketRunId: marketRunId,
+      marketRunDetailsDraft: {
+        ...initialMarketRunDetailsDraft,
+        ...details,
+      },
+      marketRunCommodityDrafts: cloneMarketRunCommodityDrafts(commodityDrafts),
+    }),
   resetMarketRunFlow: () =>
     set({
+      marketRunFlowMode: "create",
+      editingMarketRunId: null,
       marketRunDetailsDraft: initialMarketRunDetailsDraft,
       marketRunCommodityDrafts: [],
     }),
